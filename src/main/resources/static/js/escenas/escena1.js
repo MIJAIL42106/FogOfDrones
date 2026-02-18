@@ -25,8 +25,8 @@ class escena1 extends Phaser.Scene {
         this.messageY = 150; // Posición Y mensajes
         this.messages = []; // Array mensajes
 
-        this.createChatInputs();
-        this.connectWebSocket();
+        //this.createChatInputs();
+        //this.connectWebSocket();
     
         const backButton = this.add.text(50, height - 50, '← Volver al Juego', {
             fontSize: '24px',
@@ -122,9 +122,9 @@ class escena1 extends Phaser.Scene {
 
     connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
+        const host = window.location.host;                  // funciona sin estas dos lineas
         
-         this.socket = new WebSocket('ws://localhost:8080/game'); // http://26.169.248.78:8080/game
+        this.socket = new WebSocket('http://26.169.248.78:8080/game'); // http://26.169.248.78:8080/game  ws://localhost:8080/game
 
         // al recivir
         this.socket.onmessage = (event) => {
