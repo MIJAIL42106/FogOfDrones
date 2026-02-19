@@ -45,7 +45,7 @@ class escena1 extends Phaser.Scene {
                 });
             }
             this.scene.stop('chat');
-            this.scene.start('tablero'); // Cambiar a tu escena principal
+            this.scene.start('partida'); // Cambiar a tu escena principal
         });
     }
 
