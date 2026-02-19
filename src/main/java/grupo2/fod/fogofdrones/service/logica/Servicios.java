@@ -7,12 +7,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import grupo2.fod.fogofdrones.service.persistencia.JugadoresRepositorio;
+import grupo2.fod.fogofdrones.service.persistencia.Persistencia;
+import grupo2.fod.fogofdrones.service.persistencia.PersistenciaRepositorio;
 
 @Service
 public class Servicios{
 
     @Autowired
     private JugadoresRepositorio repo;
+    @Autowired
+    private PersistenciaRepositorio repoPartidas;
 
     private Map<String,Partida> partidas = new ConcurrentHashMap<>();
 
@@ -39,6 +43,10 @@ public class Servicios{
 
     public Partida getPartida(String nombreJug1, String nombreJug2) {
         String clave = generarClave(nombreJug1, nombreJug2);
+        return partidas.get(clave);
+    }
+
+    public Partida getPartidaPorClave(String clave) {
         return partidas.get(clave);
     }
 
@@ -89,6 +97,29 @@ public class Servicios{
                 break;
         }
         eliminarPartida(nombre1, nombre2);
+    }
+
+    public void guardarPartida(String nombre1, String nombre2) {
+        String clave = generarClave(nombre1, nombre2);
+        Partida partida = partidas.get(clave);
+        if (partida != null) {
+            Persistencia persistencia = new Persistencia(partida, nombre1, nombre2);
+            repoPartidas.save(persistencia);
+        }
+    }
+
+    public void cargarPartida(String nombre1) {
+        Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
+        if (persistencia != null) {
+            Partida partida = persistencia.getPartida();
+            String jugadorA = partida.getJugadorAereo().getNombre();
+            String jugadorN = partida.getJugadorNaval().getNombre();
+            String clave = generarClave(jugadorA, jugadorN);
+            partidas.put(clave, partida);
+        } else {
+            System.out.println("Error: no se encontró una partida con ese nombre");
+        }  
+
     }
 
 }
