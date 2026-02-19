@@ -2,7 +2,8 @@ gameState = {
     colorVerde: 0xaaffaa,                       //
     colorRojo: 0xffaaaa,                        //
     ancho: 64,                                  // cantidad de celdas horizontales
-    alto: 36                                    // cantidad de celdas verticales
+    alto: 36,                                    // cantidad de celdas verticales
+    nombre: ""
 }; 
 
 class Celda {                                   // calse celda para grilla
@@ -26,6 +27,10 @@ class escena3 extends Phaser.Scene {
     constructor() {
         super({key: "partida"});                // nombre de escena
     }
+
+    init(data){
+        gameState.nombre = data.nombre;
+    }
                                                 // carga de assets
     preload() {                                 // fondo, escenario, tile, dronN, dronA, portaN, portaA, explosiones // ver cohete despues
         this.load.image("tileT",".//assets/tilesets/tileT.png");
@@ -36,15 +41,18 @@ class escena3 extends Phaser.Scene {
         this.load.image("Pasar",".//assets/fondos/pasar_turno.png");
     }
 
-    create() {  
+    create() {
         this.crearFondo();
         //var fondo = this.add.image(960,540,"Fondo");   // creacion de fondo en posicion    // podria calcularse centro despues
         //fondo.setScale(1);                              // seteo de escala de fondo, hecho a medida, escala 1
 
         let indice = 0;                                 // indice para pruebas de posiciones de modifciaciones de celdas
                                                         // crecion de textos de control de variables y eventos
+        
+        let prueba = this.add.text(1500 , 900,"ii: "+ gameState.nombre, { fill: "#222222", font: "40px Times New Roman"});
+
         let indiceprueba = this.add.text(1700 , 800,"i: ", { fill: "#222222", font: "40px Times New Roman"});
-        let pruebasi = this.add.text(1500 , 800,"ii: " + gameState.prueba, { fill: "#222222", font: "40px Times New Roman"});
+        let pruebasi = this.add.text(1500 , 800,"ii: ", { fill: "#222222", font: "40px Times New Roman"});
         //let posx = this.add.text(1500 , 900,"X: ", { fill: "#222222", font: "40px Times New Roman"});//let posy = this.add.text(1500 , 1000,"Y: ", { fill: "#222222", font: "40px Times New Roman"});
         let indx = this.add.text(1700 , 900,"iX: ", { fill: "#222222", font: "40px Times New Roman"});
         let indy = this.add.text(1700 , 1000,"iY: ", { fill: "#222222", font: "40px Times New Roman"});
@@ -70,7 +78,7 @@ class escena3 extends Phaser.Scene {
             //posx.setText("X: "+ Phaser.Math.RoundTo(celda.x, 0) );//posy.setText("Y: "+ Phaser.Math.RoundTo(celda.y, 0) );  
             indx.setText("iX: "+ Phaser.Math.ToXY(indice, gameState.ancho, gameState.alto).x);
             indy.setText("iY: "+ Phaser.Math.ToXY(indice, gameState.ancho, gameState.alto).y);
-            pruebasi.setText("T1: " + indice);          // texto de variable de prueba i indice luego de pintar
+            pruebasi.setText("ii: " + indice);          // texto de variable de prueba i indice luego de pintar
         }                                        
         //let celda = this.tablero.getAt(indice);          // obtenemos la celda del tablero con indice l
     }
@@ -102,12 +110,10 @@ class escena3 extends Phaser.Scene {
         });
 
         atacarBtn.on('pointerover', function() {     // asigna interaccion al clikear
-            atacarBtn.preFX.addGlow();
-            //atacarBtn.setTint(0x44ff44);               
+            atacarBtn.setTint(0x44ff44);               
         });
         atacarBtn.on('pointerout', function() {     // asigna interaccion al clikear
-            atacarBtn.preFX.removeGlow();
-            //atacarBtn.clearTint();               
+            atacarBtn.clearTint();               
         });
 
         recargarBtn.on('pointerover', function() {     // asigna interaccion al clikear

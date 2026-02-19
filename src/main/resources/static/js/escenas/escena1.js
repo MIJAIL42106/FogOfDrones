@@ -10,7 +10,7 @@ class escena1 extends Phaser.Scene {
         super({key: "chat"});  // nombre
     }
     preload() {
-    }
+    }  
 
     create() { 
         const { width, height } = this.cameras.main;
@@ -36,6 +36,8 @@ class escena1 extends Phaser.Scene {
         })
         .setInteractive({ useHandCursor: true });
 
+        this.nom = "pepe";
+
         backButton.on('pointerdown', () => {
             if (this.domElements) {
                 this.domElements.forEach(element => {
@@ -45,7 +47,7 @@ class escena1 extends Phaser.Scene {
                 });
             }
             this.scene.stop('chat');
-            this.scene.start('partida'); // Cambiar a tu escena principal
+            this.scene.start('partida',{nombre:this.nom}); // Cambiar a tu escena principal
         });
     }
 
