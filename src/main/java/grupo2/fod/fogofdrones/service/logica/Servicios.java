@@ -118,12 +118,13 @@ public class Servicios{
         Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
         if (persistencia != null) {
             Partida partida = persistencia.getPartida();
+            partida.actualizarTablero();
             String jugadorA = partida.getJugadorAereo().getNombre();
             String jugadorN = partida.getJugadorNaval().getNombre();
             String clave = generarClave(jugadorN, jugadorA);
             partidas.put(clave, partida);
         } else {
-            System.out.println("Error: no se encontró una partida con ese nombre");
+            System.out.println("Error: no se encontro una partida con ese nombre");
         }  
 
     }

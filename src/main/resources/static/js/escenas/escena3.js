@@ -5,7 +5,8 @@ gameState = {
     alto: 36,                                    // cantidad de celdas verticales
     miTurno: false,
     celdas: 0,
-    fase: 0
+    fase: 0,
+    equipo: ""
 }; 
 
 const mensaje = {
@@ -19,50 +20,35 @@ const mensaje = {
 
 class Celda {                                   // calse celda para grilla
     constructor (grid, y, x) {                  // grid = escena donde se crean, indices para posiciones x e y
-        this.res = 22.45;                       // escala de posiciones
+        this.res = 22.36;                       // escala de posiciones
                                                 // añade imagen en posicion correspondiente a indices con escalas aplciadas // remplazar por rectangulos
-        this.tile = grid.add.image((x*this.res),(y*this.res),"tileT").setScale(1.45);  // tambien escala la imagen
-        this.tile.setAlpha(0.5);                // ajuste de opacidad para celdas de grilla
+        this.tile = grid.add.rectangle(x*this.res, y*this.res, 23, 23, 0x334455).setStrokeStyle(1, 0xffffff);;// grid.add.image((x*this.res),(y*this.res),"tileT").setScale(1.45);  // tambien escala la imagen
+        this.tile.setAlpha(0.6);                // ajuste de opacidad para celdas de grilla
         this.tile.setInteractive();             // se setea interactivo para poder darle interaccion con mouse despues
                                                 // 
         this.tile.on('pointerdown', () => {     // asigna interaccion al clikear
             if (gameState.fase === 0) {
+                //if (grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).fx.hasBloom) {
+                //    grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).removeBloom();
+                //}
+                mensaje.xi = x;
+                mensaje.yi = y;
+                //this.tile.postFX.addBloom(0xffffff, 1.5, 1.5, 2, 1.2);
+            } else {
                 if (gameState.celdas % 2 === 0){
                     gameState.celdas ++;
                     mensaje.xi = x;
                     mensaje.yi = y;
-                    this.tile.setTint(0x44ff44); 
-                } else {
-                    grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).clearTint();
-                    
-                    mensaje.xi = 0;
-                    mensaje.yi = 0;
-
-                    gameState.celdas = 0;
-                }
-
-            } else {
-                if (gameState.celdas % 3 === 0){
-                    gameState.celdas ++;
-                    mensaje.xi = x;
-                    mensaje.yi = y;
-                    this.tile.setTint(0x44ff44); 
-                } else if (gameState.celdas % 3 === 1) {
+                   // this.tile.postFX.addBloom(0xffffff, 1.5, 1.5, 2, 1.2);
+                } else if (gameState.celdas % 2 === 1) {
                     mensaje.xf = x;
                     mensaje.yf = y;
-                    gameState.celdas ++;
-                    this.tile.setTint(0xff44ff); 
-                } else {
-                    grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).clearTint();
-                    grid.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).clearTint();
-                    
-                    mensaje.xi = 0;
-                    mensaje.yi = 0;
-                    mensaje.xf = 0;
-                    mensaje.yf = 0;
-
+                   // this.tile.addBloom(0xffffff, 1.5, 1.5, 2, 1.2);
                     gameState.celdas = 0;
-                }
+                } //else {
+                    //grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).removeBloom();
+                    //grid.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).removeBloom(); 
+                //}
             }
             //this.tile.setTint(0x44ff44);                              // cambia tint de celda
             //grid.enviarMensage((y+(x*gameState.ancho)).toString());   // se envia el mensaje con indice de celda pintada como string
@@ -71,6 +57,7 @@ class Celda {                                   // calse celda para grilla
         this.tile.on('pointerover', () => {
             grid.indx.setText("X: "+x);
             grid.indy.setText("Y: "+y);
+            //grid.indice.setText("i: "+(x+y*gameState.ancho));
         });
         
         grid.tablero.add(this.tile);            // agrega la imagen creada a el tablero
@@ -88,8 +75,9 @@ class escena3 extends Phaser.Scene {
     }
                                                 // carga de assets
     preload() {                                 // fondo, escenario, tile, dronN, dronA, portaN, portaA, explosiones // ver cohete despues
-        this.load.image("tileT",".//assets/tilesets/tileT.png");
+        //this.load.image("tileT",".//assets/tilesets/tileT.png");
         this.load.image("Fondo",".//assets/fondos/FondoNaval.png");
+        this.load.image("Escenario",".//assets/escenarios/escenario1.png");
         this.load.image("Mover",".//assets/fondos/mover.png");
         this.load.image("Atacar",".//assets/fondos/atacar.png");
         this.load.image("Recargar",".//assets/fondos/recargar.png");
@@ -97,6 +85,7 @@ class escena3 extends Phaser.Scene {
     }
 
     create() {
+        this.graphics = this.add.graphics();
         this.crearFondo();
         //var fondo = this.add.image(960,540,"Fondo");   // creacion de fondo en posicion    // podria calcularse centro despues
         //fondo.setScale(1);                              // seteo de escala de fondo, hecho a medida, escala 1
@@ -111,7 +100,8 @@ class escena3 extends Phaser.Scene {
         let pruebasi = this.add.text(1500 , 800,"faselocal: " + gameState.fase, { fill: "#222222", font: "40px Times New Roman"});
         //let posx = this.add.text(1500 , 900,"X: ", { fill: "#222222", font: "40px Times New Roman"});//let posy = this.add.text(1500 , 1000,"Y: ", { fill: "#222222", font: "40px Times New Roman"});
         this.indx = this.add.text(1700 , 900,"iX: ", { fill: "#222222", font: "40px Times New Roman"});
-        this.indy = this.add.text(1700 , 1000,"iY: ", { fill: "#222222", font: "40px Times New Roman"});
+        this.indy = this.add.text(1700 , 1000,"iY: ", { fill: "#222222", font: "40px Times New Roman"});    
+        let eq = this.add.text(1500 , 1000,"equipo: ", { fill: "#222222", font: "40px Times New Roman"});
                                                         // creacion de conexion a websocket
         // agregar otra capa intermedia para la conexion
         this.socket = new WebSocket('ws://26.169.248.78:8080/game'); // http://26.169.248.78:8080/game  ws://localhost:8080/game
@@ -123,7 +113,7 @@ class escena3 extends Phaser.Scene {
         
 
 
-        this.tablero = this.add.container (45, 55);     // creaccion de elemento container que almacenara las celdas 
+        this.tablero = this.add.container (50, 60);     // creaccion de elemento container que almacenara las celdas 
 
         for (var i = 0; i < gameState.alto; i++) {      // creacion de celdas en for anidado
             for (var j = 0; j< gameState.ancho; j++) {  // indeces i y j siven para calcular posicion correspondiente x e y
@@ -136,23 +126,66 @@ class escena3 extends Phaser.Scene {
         };
 
         this.socket.onmessage = (event) => {            // arrow function conserva this de objeto padre o donde se invoca
-            var fas = JSON.parse(event.data);
-            indiceprueba.setText("msg: " + fas);
-            switch (fas){
-                case "DESPLIEGUE" :
-                    gameState.fase = 0;
-                    break;
-                case "JUGANDO" :
-                    gameState.fase = 1;
-                    break;
-                case "MUERTE_SUBITA" :
-                    gameState.fase = 2;
-                    break;
-                case "TERMINADO" :
-                    gameState.fase = 3;
-                    break;
+            var msg = JSON.parse(event.data);
+            indiceprueba.setText("msg: " + msg.tipoMensaje);
+            switch (msg.tipoMensaje) {
+                case 0 : {
+                    if (mensaje.nombre === msg.nombre) {
+                        gameState.equipo = msg.equipo.toString();
+                    }
+                    eq.setText("equipo: " + gameState.equipo)
+                } break;
+                case 1 :{
+                    switch (msg.fasePartida){
+                        case "DESPLIEGUE" :
+                            gameState.fase = 0;
+                            break;
+                        case "JUGANDO" :
+                            gameState.fase = 1;
+                            break;
+                        case "MUERTE_SUBITA" :
+                            gameState.fase = 2;
+                            break;
+                        case "TERMINADO" :
+                            gameState.fase = 3;
+                            break;
+                    }
+                    pruebasi.setText("faselocal: " + gameState.fase);
+                    var i = 0;
+                    msg.grilla.forEach((cel) => {
+                        if (!cel.visionNaval && gameState.equipo === "NAVAL" ) {
+                            this.tablero.getAt(i).setFillStyle(0x000000);
+                        } else if (!cel.visionAereo && gameState.equipo === "AEREO" ) {
+                            this.tablero.getAt(i).setFillStyle(0x000000);
+                        } else if (cel.aereo !== null ) {
+                            if (gameState.equipo === "AEREO" || cel.visionNaval) 
+                                this.tablero.getAt(i).setFillStyle(gameState.colorRojo);
+                        } else if (cel.naval !== null) {
+                            if (gameState.equipo === "NAVAL" || cel.visionAereo)
+                                this.tablero.getAt(i).setFillStyle(gameState.colorVerde);
+                        } else {
+                            this.tablero.getAt(i).setFillStyle();//clearTint();
+                        }
+                        i++;
+                    });
+                } break;
+                case 2 :{
+                    if (gameState.nombre === msg.nombre) {
+                        alert(msg.error);
+                    }
+                } break;
+                default :
+
+                break;
             }
-            pruebasi.setText("faselocal: " + gameState.fase);
+            
+            
+            
+            
+            
+            
+            
+            
             //indice = parseInt(event.data);              // event.data contiene string mensaje de logica, lo parseamos a int para indice
             //indiceprueba.setText("i: " + indice);       // texto de variable de prueba i indice antes de pintar
                                                         // una forma mas corta que funciona pero pintarcelda puede ser util
@@ -174,18 +207,20 @@ class escena3 extends Phaser.Scene {
     }*/
 
     crearFondo() {
-        var fondo = this.add.image(960,540,"Fondo");   // creacion de fondo en posicion    // podria calcularse centro despues
+        var fondo = this.add.image(960,540,"Fondo").setDepth(1);   // creacion de fondo en posicion    // podria calcularse centro despues
         fondo.setScale(1);                              // seteo de escala de fondo, hecho a medida, escala 1
+        var escenario = this.add.image(38, 48,"Escenario").setOrigin(0, 0).setDepth(0);
+        escenario.setScale(1); 
         const tamBtn = 333 ;
         const sep = 35 ;
         var pos = 200 ;
-        var moverBtn = this.add.image(pos,960,"Mover").setInteractive();
+        var moverBtn = this.add.image(pos,960,"Mover").setDepth(2).setInteractive();
         pos += tamBtn + sep;
-        var atacarBtn = this.add.image(pos,960,"Atacar").setInteractive();
+        var atacarBtn = this.add.image(pos,960,"Atacar").setDepth(2).setInteractive();
         pos += tamBtn + sep;
-        var recargarBtn = this.add.image(pos,960,"Recargar").setInteractive();
+        var recargarBtn = this.add.image(pos,960,"Recargar").setDepth(2).setInteractive();
         pos += tamBtn + sep;
-        var pasarBtn = this.add.image(pos,960,"Pasar").setInteractive();
+        var pasarBtn = this.add.image(pos,960,"Pasar").setDepth(2).setInteractive();
 
         moverBtn.on('pointerover', function() {     // asigna interaccion al clikear 
             moverBtn.setTint(0x44ff44);               

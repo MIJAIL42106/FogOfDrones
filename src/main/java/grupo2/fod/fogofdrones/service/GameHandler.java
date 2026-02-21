@@ -3,6 +3,8 @@ package grupo2.fod.fogofdrones.service;
 import grupo2.fod.fogofdrones.service.logica.Partida;	///////////////////////////////////////////////////////////////////////////////////////
 import grupo2.fod.fogofdrones.service.logica.Jugador;
 import grupo2.fod.fogofdrones.service.logica.Posicion;
+import grupo2.fod.fogofdrones.service.logica.Equipo;
+import grupo2.fod.fogofdrones.service.valueObject.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 import grupo2.fod.fogofdrones.service.logica.FasePartida;
@@ -122,9 +124,10 @@ public class GameHandler extends TextWebSocketHandler {
 	public String mensajeRetorno() {
 		String t = null;
 		try { // Convert the Java object to a JSON string
-    		//t = mapper.writeValueAsString(p.getTablero());
-			t = mapper.writeValueAsString(p.getFasePartida());
-    		System.out.println("STRING JSON DE SERVIDOR A CLIENTE DEL MAPA:" + t);
+			VoMensaje mensaje = new VoMensaje(p.getFasePartida(), p.getTablero());
+    		t = mapper.writeValueAsString(mensaje);
+			//t = mapper.writeValueAsString(p.getFasePartida());
+    		//System.out.println("STRING JSON DE SERVIDOR A CLIENTE DEL MAPA:" + t);
 		} catch (Exception e) {
     		e.printStackTrace();
 		}
@@ -144,16 +147,26 @@ public class GameHandler extends TextWebSocketHandler {
 
 		//
 		String nombre = (String) data.get("nombre");
+		TextMessage respuesta = null;
 
 		if(p == null){
 			if (jugador1 == null){	
 				jugador1 = new Jugador(nombre, 0, 0);
 				System.out.println("Jugador 1 creado: " + jugador1.getNombre());
+				
+				VoMensaje mensaje = new VoMensaje(nombre, Equipo.NAVAL);
+				String t = mapper.writeValueAsString(mensaje);
+				respuesta = new TextMessage(t);
+
 			} else if (jugador2 == null) {
-				jugador2 = new Jugador(nombre, 0, 0);
+				jugador2 = new Jugador(nombre, 0, 0); 
 				System.out.println("Jugador 2 creado: " + jugador2.getNombre());
 				p = new Partida(jugador1,jugador2);
 				System.out.println("Partida creada con jugadores: " + jugador1.getNombre() + " y " + jugador2.getNombre());
+
+				VoMensaje mensaje = new VoMensaje(nombre, Equipo.AEREO);
+				String t = mapper.writeValueAsString(mensaje);
+				respuesta = new TextMessage(t);
 			}
 		} else if (p.esMiTurno(nombre)) {
 			// string accion determina la accion que el cliente quiere realizar}
@@ -173,25 +186,27 @@ public class GameHandler extends TextWebSocketHandler {
 					handleRecargar(data);
 					break;
 				default:
-					//enviarError(session, "Acción desconocida: " + accion);
+					//enviarError(session, "Accion desconocida: " + accion);
 					break;
 				}
-			
+				
 			}
-			TextMessage respuesta = new TextMessage(mensajeRetorno());
-			
-			
-			for (WebSocketSession webSocketSession : sessions) {
-				try {
-					webSocketSession.sendMessage(respuesta);
-				} catch (IOException e) {
-					LOGGER.error(e.getMessage(),e);
-				}
-			}
+			respuesta = new TextMessage(mensajeRetorno());
 		} else {
-			System.out.println("No es tu turno: " + nombre);
+			VoMensaje mensaje = new VoMensaje(nombre, "No es tu turno");
+			String t = mapper.writeValueAsString(mensaje);
+			respuesta = new TextMessage(t);
+			//System.out.println("No es tu turno: " + nombre);
 		}
-		
+
+		for (WebSocketSession webSocketSession : sessions) {
+			try {
+				//System.out.println("STRING JSON DE SERVIDOR A CLIENTE DEL MAPA:" + respuesta.getPayload());
+				webSocketSession.sendMessage(respuesta);
+			} catch (IOException e) {
+				LOGGER.error(e.getMessage(),e);
+			}
+		}
 		/* 
 		for (WebSocketSession webSocketSession : sessions) {
 				try {

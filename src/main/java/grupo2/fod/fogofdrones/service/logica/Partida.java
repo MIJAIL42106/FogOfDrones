@@ -2,12 +2,16 @@ package grupo2.fod.fogofdrones.service.logica;
 
 import java.io.Serializable;
 import java.util.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.Transient;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Partida implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    @Transient
+    @JsonIgnore
     private Mapa tablero;
     private Jugador jugadorAereo, jugadorNaval;
     private List<Dron> dronesAereos, dronesNavales;
@@ -62,7 +66,7 @@ public class Partida implements Serializable {
         }
         return valido;
    	}
-
+    
     public int cantDrones() {
         return dronesAereos.size() + dronesNavales.size();
     }
@@ -426,11 +430,21 @@ public class Partida implements Serializable {
         tablero.resetearVision();
     
         for (Dron dron : dronesNavales) {
-            tablero.marcarVision(dron.getPosicion(), dron.getVision(), Equipo.NAVAL);
+            tablero.marcarVision(dron, Equipo.NAVAL);
         }
         
         for (Dron dron : dronesAereos) {
-            tablero.marcarVision(dron.getPosicion(), dron.getVision(), Equipo.AEREO);
+            tablero.marcarVision(dron, Equipo.AEREO);
+        }
+    }
+
+    public void actualizarTablero() {
+        for (Dron dron : dronesNavales) {
+            tablero.actualizarTablero(dron, Equipo.NAVAL);
+        }
+        
+        for (Dron dron : dronesAereos) {
+            tablero.actualizarTablero(dron, Equipo.AEREO);
         }
     }
 

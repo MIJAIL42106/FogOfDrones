@@ -4,12 +4,15 @@ import java.io.Serializable;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+//import jakarta.persistence.Transient;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Mapa implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final int largo = 64, ancho = 36;
-    private Celda[][] grilla;
+    //@Transient
+    private final Celda[][] grilla;
 
     public Mapa() {
         grilla = new Celda[largo][ancho];
@@ -27,6 +30,23 @@ public class Mapa implements Serializable {
 
     public int getAncho() {
         return ancho;
+    }
+
+    //@JsonIgnore
+    public Celda[][] getGrilla() {
+        return grilla;
+    }
+
+    public Celda[] getGrillaLineal() {
+        Celda[] grillaLineal = new Celda[largo * ancho];
+        int indice = 0;
+        for(int j = 0; j < ancho; j++) {
+            for(int i = 0; i < largo; i++) {
+                grillaLineal[indice] = grilla[i][j];
+                indice++;
+            }
+        }
+        return grillaLineal;
     }
 
     public Celda getCelda(Posicion pos) {
@@ -62,7 +82,9 @@ public class Mapa implements Serializable {
         }
     }
 
-    public void marcarVision(Posicion posParam, int rangoParam, Equipo equipoParam) {
+    public void marcarVision(Dron dron, Equipo equipoParam) {
+        Posicion posParam = dron.getPosicion();
+        int rangoParam = dron.getVision();
         for(int i = 0; i < largo; i++) {
             for(int j = 0; j < ancho; j++) {
                 Posicion celdaActual = new Posicion(i, j);
@@ -74,9 +96,21 @@ public class Mapa implements Serializable {
                         grilla[i][j].setVisionNaval(true);
                     } else {
                         grilla[i][j].setVisionAereo(true);
+
                     }
                 }
             }
         }
+    }
+
+    public void actualizarTablero(Dron dron, Equipo equipoParam) {
+        Posicion posParam = dron.getPosicion();
+        int rangoParam = dron.getVision();
+        if (equipoParam == Equipo.NAVAL) {
+            grilla[posParam.getX()][posParam.getY()].setDronNaval(dron);
+        } else {
+            grilla[posParam.getX()][posParam.getY()].setDronAereo(dron);
+        }
+        marcarVision(dron, equipoParam);
     }
 }
