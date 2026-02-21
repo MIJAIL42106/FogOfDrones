@@ -22,23 +22,30 @@ class escena1 extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.messageY = 150; // Posición Y mensajes
-        this.messages = []; // Array mensajes
+        //this.messageY = 150; // Posición Y mensajes
+        //this.messages = []; // Array mensajes
 
-        //this.createChatInputs();
+        this.crearNombreInput();
         //this.connectWebSocket();
     
-        const backButton = this.add.text(50, height - 50, '← Volver al Juego', {
-            fontSize: '24px',
+        const backButton = this.add.text(width / 2, height - 50, 'Ir al Juego', {
+            fontSize: '40px',
             color: '#ffffff',
             backgroundColor: '#667eea',
             padding: { x: 20, y: 10 }
-        })
+        }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
-        this.nom = "pepe";
+        
 
         backButton.on('pointerdown', () => {
+            const nom = this.nombreInput.value.trim();
+
+            if (!nom) {
+                alert('falta nombre');
+                return;
+            }
+
             if (this.domElements) {
                 this.domElements.forEach(element => {
                     if (element && element.parentNode) {
@@ -47,23 +54,23 @@ class escena1 extends Phaser.Scene {
                 });
             }
             this.scene.stop('chat');
-            this.scene.start('partida',{nombre:this.nom}); // Cambiar a tu escena principal
+            this.scene.start('partida',{nombre:nom}); // Cambiar a tu escena principal
         });
     }
 
     // inputs HTML
-    createChatInputs() {
+    crearNombreInput() {
         const { width } = this.cameras.main;
 
         // input
-        this.usernameInput = document.createElement('input');
-        this.usernameInput.type = 'text';
-        this.usernameInput.id = 'chat-username';
-        this.usernameInput.placeholder = 'Tu nombre';
-        this.usernameInput.maxLength = 20;
-        this.usernameInput.style.cssText = `
-            position: absolute;
-            left: 50px;
+        this.nombreInput = document.createElement('input');
+        this.nombreInput.type = 'text';
+        this.nombreInput.id = 'chat-nombre';
+        this.nombreInput.placeholder = 'Tu nombre';
+        this.nombreInput.maxLength = 20;
+        this.nombreInput.style.cssText = `
+            position: relative;
+            left: 50%;
             bottom: 120px;
             width: 200px;
             padding: 10px;
@@ -71,55 +78,9 @@ class escena1 extends Phaser.Scene {
             border: 2px solid #667eea;
             border-radius: 5px;
         `;
-        document.body.appendChild(this.usernameInput);
+        document.body.appendChild(this.nombreInput);
 
-        // input
-        this.messageInput = document.createElement('input');
-        this.messageInput.type = 'text';
-        this.messageInput.id = 'chat-message';
-        this.messageInput.placeholder = 'Escribe tu mensaje...';
-        this.messageInput.maxLength = 100;
-        this.messageInput.style.cssText = `
-            position: absolute;
-            left: 50px;
-            bottom: 60px;
-            width: 500px;
-            padding: 10px;
-            font-size: 16px;
-            border: 2px solid #667eea;
-            border-radius: 5px;
-        `;
-        document.body.appendChild(this.messageInput);
-
-        // boton
-        this.sendButton = document.createElement('button');
-        this.sendButton.textContent = 'Enviar';
-        this.sendButton.style.cssText = `
-            position: absolute;
-            left: 570px;
-            bottom: 60px;
-            padding: 10px 30px;
-            font-size: 16px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        `;
-        document.body.appendChild(this.sendButton);
-
-        // boton
-        this.sendButton.addEventListener('click', () => {
-            this.sendMessage();
-        });
-        // enter
-        this.messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.sendMessage();
-            }
-        });
-
-        this.domElements = [this.usernameInput, this.messageInput, this.sendButton];
+        this.domElements = [this.nombreInput];
     }
 
     connectWebSocket() {
@@ -133,12 +94,12 @@ class escena1 extends Phaser.Scene {
             this.addMessage(event.data);
         };
     }
-
+/*
     sendMessage() {
-        const username = this.usernameInput.value.trim();
+        const nombre = this.nombreInput.value.trim();
         const message = this.messageInput.value.trim();
 
-        if (!username) {
+        if (!nombre) {
             alert('falta nombre');
             return;
         }
@@ -149,14 +110,14 @@ class escena1 extends Phaser.Scene {
         }
 
        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            const fullMessage = `${username}: ${message}`;
+            const fullMessage = `${nombre}: ${message}`;
             this.socket.send(fullMessage);
             this.messageInput.value = '';
         } else {
             alert('No servidor');
         }
     }
-
+    
     addMessage(text) {
         const messageText = this.add.text(100, this.messageY, text, {
             fontSize: '18px',
@@ -178,7 +139,7 @@ class escena1 extends Phaser.Scene {
 
             this.messageY -= 35;
         }
-    }
+    }*/
 
     shutdown() {
         // Cerrar WebSocket
