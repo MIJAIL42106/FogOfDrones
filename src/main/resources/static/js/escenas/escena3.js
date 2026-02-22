@@ -190,7 +190,7 @@ class escena3 extends Phaser.Scene {
                                     dronesContados++;
                                 }
                             } else {
-                                celda.setFillStyle(0x334455);
+                                celda.setFillStyle(0xffffff);
                             }
                             i++;
                         });
