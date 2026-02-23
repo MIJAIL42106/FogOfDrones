@@ -3,7 +3,7 @@ gameState = {       // va a almacenar el estado del juego
     colorVerde: 0xaaffaa,
     colorRojo: 0xffaaaa
 }; 
-    
+
 class escena2 extends Phaser.Scene {
     
     constructor() {

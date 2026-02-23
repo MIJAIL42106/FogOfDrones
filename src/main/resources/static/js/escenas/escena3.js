@@ -8,7 +8,7 @@ gameState = {
     alto: 36,                                    // cantidad de celdas verticales
     tableroX: 50, 
     tableroY: 60,
-    miTurno: false,
+    miTurno: false,                   // no se usa
     celdas: 0,
     fase: "",
     equipo: "",

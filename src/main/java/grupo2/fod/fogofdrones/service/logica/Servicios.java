@@ -30,13 +30,19 @@ public class Servicios{
         if (partidas.containsKey(clave)) {        // ya existe una partidad con esos jugadores
             System.out.println("Error: ya existe una partida con esos jugadores");
         } else {
-            Jugador Naval = repo.findById(jugador1).orElse(new Jugador(jugador1, 0, 0, true));
-            Jugador Aereo = repo.findById(jugador2).orElse(new Jugador(jugador2, 0, 0, true));
+            Jugador naval = repo.findById(jugador1).orElse(new Jugador(jugador1, 0, 0, false));
+            Jugador aereo = repo.findById(jugador2).orElse(new Jugador(jugador2, 0, 0, false));
+        
+            repo.delete(naval);
+            repo.delete(aereo);
 
-            repo.save(Naval);
-            repo.save(Aereo);
+            naval.setJugando(true);
+            aereo.setJugando(true);
 
-            Partida partida = new Partida(Naval, Aereo);  // asigna el 1 al naval  y el 2 al aereo
+            repo.save(naval);
+            repo.save(aereo);
+
+            Partida partida = new Partida(naval, aereo);  // asigna el 1 al naval  y el 2 al aereo
             partidas.put(clave, partida);
         }
     }

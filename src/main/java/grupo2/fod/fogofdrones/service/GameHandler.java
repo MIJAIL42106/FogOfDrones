@@ -2,7 +2,6 @@ package grupo2.fod.fogofdrones.service;
 
 // ver como adaptar a servicios usando varias partidas
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -17,6 +16,7 @@ import grupo2.fod.fogofdrones.service.logica.FasePartida;
 import grupo2.fod.fogofdrones.service.logica.Jugador;
 import grupo2.fod.fogofdrones.service.logica.Partida;
 import grupo2.fod.fogofdrones.service.logica.Posicion;
+import grupo2.fod.fogofdrones.service.logica.Servicios;
 import grupo2.fod.fogofdrones.service.valueObject.VoMensaje;
 
 // Controlador que administra las conexiones STOMP para el juego
@@ -28,17 +28,26 @@ public class GameHandler {
 	@Autowired
 	private SimpMessagingTemplate messagingTemplate;
 	
+	@Autowired
+	private Servicios servicios;
+	private String jugador1 = null;
+	private String jugador2 = null;
+	
 	private ObjectMapper mapper = new ObjectMapper();
 	
-	// Mapa de partidas activas (para manejar múltiples juegos simultáneos)
-	// En esta versión simple, usamos una sola partida global
-	private Partida p = null;
-	private Jugador jugador1 = null;
-	private Jugador jugador2 = null;
-	
-	// Map para trackear sesiones de jugadores (opcional, para futuras mejoras)
-	private final ConcurrentHashMap<String, String> jugadorSessions = new ConcurrentHashMap<>();
-	
+	@MessageMapping("/login")
+	public void handleActionMenu(@Payload Map<String, Object> data) {
+		try {
+			String nombre = (String) data.get("nombre");
+			if (servicios.existePartida(nombre)) {
+						// error
+			} else {
+				handleCrearJugador(nombre);
+			}
+		} catch (Exception e) {
+			//LOGGER.error("Error procesando acción: {}", e.getMessage(), e);
+		}
+	}
 	/**
 	 * Endpoint principal que maneja todas las acciones del juego
 	 * Los clientes envían mensajes a /app/accion
@@ -53,32 +62,27 @@ public class GameHandler {
 			String nombre = (String) data.get("nombre");
 			
 			//LOGGER.info("Acción recibida de: {}", nombre);
-			//LOGGER.info("Estado actual - jugador1: {}, jugador2: {}, partida existe: {}", 
-			//	jugador1 != null ? jugador1.getNombre() : "null", 
-			//	jugador2 != null ? jugador2.getNombre() : "null",
-			//	p != null);
 			
-			// Si no hay partida, intentar crear jugadores
-			if (p == null) {
-				//LOGGER.info("No hay partida creada, intentando crear jugador...");
-				handleCrearJugador(nombre);
-			} else if (p.esMiTurno(nombre)) {
+			// Obtener la partida asociada a este jugador
+			Partida p = servicios.getPartidaJugador(nombre);
+			
+			if (p.esMiTurno(nombre)) {
 				// Si es el turno del jugador, procesar la acción
 				String accion = (String) data.get("accion");
 				//LOGGER.info("{} - {}", nombre, accion);
 				
 				if (p.getFasePartida() == FasePartida.DESPLIEGUE) {
-					handleDesplegar(data);
+					handleDesplegar(data, p);
 				} else {
 					switch (accion) {
 						case "MOVER":
-							handleMover(data);
+							handleMover(data, p);
 							break;
 						case "ATACAR":
-							handleAtacar(data);
+							handleAtacar(data, p);
 							break;
 						case "RECARGAR":
-							handleRecargar(data);
+							handleRecargar(data, p);
 							break;
 						case "PASAR":
 							p.terminarTurno();
@@ -91,7 +95,7 @@ public class GameHandler {
 				
 				// Enviar estado actualizado a todos los clientes
 				//LOGGER.info("Enviando estado actualizado después de acción...");
-				String respuesta = mensajeRetorno();
+				String respuesta = mensajeRetorno(p);
 				messagingTemplate.convertAndSend("/topic/game", respuesta);
 				//LOGGER.info("Estado actualizado enviado a todos los clientes");
 				
@@ -114,7 +118,7 @@ public class GameHandler {
 	private void handleCrearJugador(String nombre) {
 		try {
 			if (jugador1 == null) {
-				jugador1 = new Jugador(nombre, 0, 0, true);
+				jugador1 = nombre;
 				//LOGGER.info("Jugador 1 creado: {}", jugador1.getNombre());
 				
 				// Notificar al jugador 1 que es NAVAL
@@ -123,12 +127,14 @@ public class GameHandler {
 				//LOGGER.info("Enviando asignación NAVAL al jugador 1: {}", respuesta);
 				messagingTemplate.convertAndSend("/topic/game", respuesta);
 				
-			} else if (jugador2 == null && !jugador1.getNombre().equals(nombre)) {
-				jugador2 = new Jugador(nombre, 0, 0, true);
+			} else if (jugador2 == null && !jugador1.equals(nombre)) {
+				jugador2 = nombre;
 				//LOGGER.info("Jugador 2 creado: {}", jugador2.getNombre());
-				p = new Partida(jugador1, jugador2);
+				servicios.crearPartida(jugador1, jugador2);
+				String clave = servicios.generarClave(jugador1, jugador2);
 				//LOGGER.info("Partida creada con jugadores: {} y {}", jugador1.getNombre(), jugador2.getNombre());
-				
+				jugador1 = null;
+				jugador2 = null;
 				// Notificar al jugador 2 que es AEREO
 				VoMensaje mensaje = new VoMensaje(nombre, Equipo.AEREO);
 				String respuesta = mapper.writeValueAsString(mensaje);
@@ -136,7 +142,8 @@ public class GameHandler {
 				messagingTemplate.convertAndSend("/topic/game", respuesta);
 				
 				// Enviar estado inicial del juego a todos los jugadores
-				String estadoInicial = mensajeRetorno();
+				Partida p = servicios.getPartidaJugador(nombre);
+				String estadoInicial = mensajeRetorno(p);
 				//LOGGER.info("Enviando estado inicial de la partida (tamaño: {} chars)", estadoInicial != null ? estadoInicial.length() : 0);
 				messagingTemplate.convertAndSend("/topic/game", estadoInicial);
 				//LOGGER.info("Estado inicial de la partida enviado a todos los jugadores");
@@ -151,7 +158,7 @@ public class GameHandler {
 	/**
 	 * Maneja el despliegue de drones en la fase inicial
 	 */
-	public void handleDesplegar(Map<String, Object> data) {
+	public void handleDesplegar(Map<String, Object> data, Partida p) {
 		int x = (int) data.get("xi");
 		int y = (int) data.get("yi");
 		Posicion pos = new Posicion(x, y);
@@ -165,7 +172,7 @@ public class GameHandler {
 	/**
 	 * Maneja el movimiento de drones
 	 */
-	public void handleMover(Map<String, Object> data) {
+	public void handleMover(Map<String, Object> data, Partida p) {
 		int xi = (int) data.get("xi");
 		int yi = (int) data.get("yi");
 		Posicion posi = new Posicion(xi, yi);
@@ -182,7 +189,7 @@ public class GameHandler {
 	/**
 	 * Maneja los ataques entre drones
 	 */
-	public void handleAtacar(Map<String, Object> data) {
+	public void handleAtacar(Map<String, Object> data, Partida p) {
 		int xi = (int) data.get("xi");
 		int yi = (int) data.get("yi");
 		Posicion posi = new Posicion(xi, yi);
@@ -199,7 +206,7 @@ public class GameHandler {
 	/**
 	 * Maneja la recarga de munición
 	 */
-	public void handleRecargar(Map<String, Object> data) {
+	public void handleRecargar(Map<String, Object> data, Partida p) {
 		int x = (int) data.get("xi");
 		int y = (int) data.get("yi");
 		Posicion pos = new Posicion(x, y);
@@ -213,7 +220,7 @@ public class GameHandler {
 	/**
 	 * Genera el mensaje de retorno con el estado actual del juego
 	 */
-	public String mensajeRetorno() {
+	public String mensajeRetorno(Partida p) {
 		String t = null;
 		try {
 			//LOGGER.info("Generando mensaje de retorno...");
@@ -229,15 +236,6 @@ public class GameHandler {
 		return t;
 	}
 	
-	/**
-	 * Método opcional para reiniciar la partida
-	 */
-	public void reiniciarPartida() {
-		this.p = null;
-		this.jugador1 = null;
-		this.jugador2 = null;
-		this.jugadorSessions.clear();
-		//LOGGER.info("Partida reiniciada");
-	}
+
 
 }

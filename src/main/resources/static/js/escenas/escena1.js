@@ -4,10 +4,14 @@ gameState = {       // va a almacenar el estado del juego
         colorRojo: 0xffaaaa
     };  
 
+const mensaje = {
+    nombre: "",
+};
+
 class escena1 extends Phaser.Scene {
 
     constructor() {
-        super({key: "chat"});  // nombre
+        super({key: "menu"});  // nombre
     }
     preload() {
     }  
@@ -16,28 +20,18 @@ class escena1 extends Phaser.Scene {
         const { width, height } = this.cameras.main;
         this.cameras.main.setBackgroundColor('#1a1a2e');
 
-        this.add.text(width / 2, 50, 'CHAT', {
-            fontSize: '48px',
-            color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        //this.messageY = 150; // Posición Y mensajes
-        //this.messages = []; // Array mensajes
-
         this.crearNombreInput();
         //this.connectWebSocket();
     
-        const backButton = this.add.text(width / 2, height - 50, 'Ir al Juego', {
+        const backButton = this.add.text(width / 2, height - 50, 'Jugar', {
             fontSize: '40px',
             color: '#ffffff',
-            backgroundColor: '#667eea',
+            backgroundColor: '#4bae5f',
             padding: { x: 20, y: 10 }
         }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
         
-
         backButton.on('pointerdown', () => {
             const nom = this.nombreInput.value.trim();
 
@@ -71,9 +65,11 @@ class escena1 extends Phaser.Scene {
         this.nombreInput.style.cssText = `
             position: relative;
             left: 50%;
-            bottom: 120px;
+            bottom: 20%;
             width: 200px;
-            padding: 10px;
+            height: 16px;
+            transform: translate(-113px, -100px);
+            padding: 1%;
             font-size: 16px;
             border: 2px solid #667eea;
             border-radius: 5px;
@@ -82,6 +78,7 @@ class escena1 extends Phaser.Scene {
 
         this.domElements = [this.nombreInput];
     }
+    // ${width}
 
     /**
      * NOTA: El método connectWebSocket está comentado porque la conexión
