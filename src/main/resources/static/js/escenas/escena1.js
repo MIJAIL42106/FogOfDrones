@@ -1,11 +1,12 @@
 gameState = {       // va a almacenar el estado del juego
                         // o variables/informacion que necesitamos pasar entre funciones, mejor opcion que globales
-        colorVerde: 0xaaffaa,
-        colorRojo: 0xffaaaa
-    };  
+    colorVerde: 0xaaffaa,
+    colorRojo: 0xffaaaa,
+    equipo: ""
+};  
 
-const mensaje = {
-    nombre: "",
+const mensajeLogin = {
+    nombre: ""
 };
 
 class escena1 extends Phaser.Scene {
@@ -19,9 +20,12 @@ class escena1 extends Phaser.Scene {
     create() { 
         const { width, height } = this.cameras.main;
         this.cameras.main.setBackgroundColor('#1a1a2e');
+        this.pendingLoginPayload = null;
+        this.awaitingLoginResponse = false;
+        this.startedPartida = false;
 
         this.crearNombreInput();
-        //this.connectWebSocket();
+        this.conectarSTOMP();
     
         const backButton = this.add.text(width / 2, height - 50, 'Jugar', {
             fontSize: '40px',
@@ -33,23 +37,123 @@ class escena1 extends Phaser.Scene {
 
         
         backButton.on('pointerdown', () => {
-            const nom = this.nombreInput.value.trim();
+            mensajeLogin.nombre = this.nombreInput.value.trim();
 
-            if (!nom) {
+            if (!mensajeLogin.nombre) {
                 alert('falta nombre');
                 return;
             }
 
-            if (this.domElements) {
-                this.domElements.forEach(element => {
-                    if (element && element.parentNode) {
-                        element.parentNode.removeChild(element);
+            this.awaitingLoginResponse = true;
+            const payload = JSON.stringify(mensajeLogin);
+            if (this.stompClient && this.stompClient.connected) {
+                this.enviarMensage(payload);
+            } else {
+                this.pendingLoginPayload = payload;
+                this.conectarSTOMP();
+            }
+
+        });
+    }
+
+    getSocketCandidates() {
+        const customBase = window.FOG_BACKEND_URL || localStorage.getItem('fogBackendUrl');
+        const bases = [customBase, window.location.origin, 'http://26.169.248.78:8080']
+            .filter(Boolean)
+            .map(base => base.replace(/\/$/, ''));
+
+        return [...new Set(bases)].map(base => base + '/game');
+    }
+
+    normalizarNombre(value) {
+        return (value || '').toString().trim().toLowerCase();
+    }
+
+    iniciarPartida(nombre, equipo) {
+        if (this.startedPartida) {
+            return;
+        }
+
+        this.startedPartida = true;
+        this.awaitingLoginResponse = false;
+        gameState.equipo = (equipo || '').toString();
+
+        if (this.domElements) {
+            this.domElements.forEach(element => {
+                if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+            });
+        }
+
+        this.scene.stop('menu');
+        this.scene.start('partida', { nombre, equipo: gameState.equipo });
+    }
+
+    // establece conexion STOMP con SockJS
+    conectarSTOMP() {
+        if (this.connectingStomp || (this.stompClient && this.stompClient.connected)) {
+            return;
+        }
+
+        const socketCandidates = this.getSocketCandidates();
+        this.connectingStomp = true;
+
+        const intentarConexion = (index) => {
+            if (index >= socketCandidates.length) {
+                this.connectingStomp = false;
+                return;
+            }
+
+            const socket = new SockJS(socketCandidates[index]);
+            const stompClient = Stomp.over(socket);
+            stompClient.debug = null;
+
+            stompClient.connect({}, () => {
+                this.stompClient = stompClient;
+                this.connectingStomp = false;
+
+                this.stompClient.subscribe('/topic/login', (message) => {
+                    let msg;
+                    try {
+                        msg = JSON.parse(message.body);
+                    } catch (error) {
+                        return;
+                    }
+
+                    const nombreLocal = this.normalizarNombre(mensajeLogin.nombre);
+                    const nombreRemoto = this.normalizarNombre(msg.nombre);
+                    const mismoJugador = nombreLocal.length > 0 && nombreLocal === nombreRemoto;
+
+                    if (msg && msg.tipoMensaje === 2 && mismoJugador) {
+                        this.awaitingLoginResponse = false;
+                        alert(msg.error || 'No se pudo iniciar sesión');
+                        return;
+                    }
+
+                    const esperandoYConEquipo = this.awaitingLoginResponse && msg && msg.equipo != null;
+
+                    if (mismoJugador || esperandoYConEquipo) {
+                        this.iniciarPartida(mensajeLogin.nombre, msg.equipo);
                     }
                 });
-            }
-            this.scene.stop('chat');
-            this.scene.start('partida',{nombre:nom}); // Cambiar a tu escena principal
-        });
+
+                if (this.pendingLoginPayload) {
+                    this.enviarMensage(this.pendingLoginPayload);
+                    this.pendingLoginPayload = null;
+                }
+            }, () => {
+                intentarConexion(index + 1);
+            });
+        };
+
+        intentarConexion(0);
+    }
+
+    enviarMensage(data) {
+        if (this.stompClient && this.stompClient.connected) {
+            this.stompClient.send("/app/login", {}, data);
+        }
     }
 
     // inputs HTML
@@ -59,7 +163,7 @@ class escena1 extends Phaser.Scene {
         // input
         this.nombreInput = document.createElement('input');
         this.nombreInput.type = 'text';
-        this.nombreInput.id = 'chat-nombre';
+        this.nombreInput.id = 'nombre';
         this.nombreInput.placeholder = 'Tu nombre';
         this.nombreInput.maxLength = 20;
         this.nombreInput.style.cssText = `
@@ -69,7 +173,7 @@ class escena1 extends Phaser.Scene {
             width: 200px;
             height: 16px;
             transform: translate(-113px, -100px);
-            padding: 1%;
+            padding: 2px;
             font-size: 16px;
             border: 2px solid #667eea;
             border-radius: 5px;
@@ -78,78 +182,7 @@ class escena1 extends Phaser.Scene {
 
         this.domElements = [this.nombreInput];
     }
-    // ${width}
-
-    /**
-     * NOTA: El método connectWebSocket está comentado porque la conexión
-     * se realiza directamente en escena3.js cuando empieza la partida.
-     * Si necesitas funcionalidad de chat, puedes descomentar y adaptar este método.
-     */
-    /*
-    conectarSTOMP() {
-        const socket = new SockJS(window.location.origin + '/game');
-        this.stompClient = Stomp.over(socket);
-        
-        this.stompClient.connect({}, (frame) => {
-            console.log('Conectado a STOMP: ' + frame);
-            
-            this.stompClient.subscribe('/topic/game', (message) => {
-                this.addMessage(message.body);
-            });
-        }, (error) => {
-            console.error('Error de conexión STOMP: ' + error);
-        });
-    }
-    */
-/*
-    sendMessage() {
-        const nombre = this.nombreInput.value.trim();
-        const message = this.messageInput.value.trim();
-
-        if (!nombre) {
-            alert('falta nombre');
-            return;
-        }
-
-        if (!message) {
-            alert('falta mensaje');
-            return;
-        }
-
-       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            const fullMessage = `${nombre}: ${message}`;
-            this.socket.send(fullMessage);
-            this.messageInput.value = '';
-        } else {
-            alert('No servidor');
-        }
-    }
-    
-    addMessage(text) {
-        const messageText = this.add.text(100, this.messageY, text, {
-            fontSize: '18px',
-            color: '#ffffff',
-            backgroundColor: '#333333',
-            padding: { x: 10, y: 5 },
-            wordWrap: { width: 1200 }
-        });
-        this.messages.push(messageText);
-        this.messageY += 35;
-
-        if (this.messages.length > 20) {
-            const oldMessage = this.messages.shift();
-            oldMessage.destroy();
-
-            this.messages.forEach(msg => {
-                msg.y -= 35;
-            });
-
-            this.messageY -= 35;
-        }
-    }*/
-
     shutdown() {
-        // Cerrar conexión STOMP si existe
         if (this.stompClient && this.stompClient.connected) {
             this.stompClient.disconnect();
         }

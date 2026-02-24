@@ -44,11 +44,7 @@
         const stompClient = Stomp.over(socket);
         
         stompClient.connect({}, function(frame) {
-            console.log('Conectado a STOMP: ' + frame);
-            
-            // Suscribirse al topic para recibir mensajes
             stompClient.subscribe('/topic/game', function(message) {
-                console.log('Mensaje recibido: ' + message.body);
             });
         });
     </script>

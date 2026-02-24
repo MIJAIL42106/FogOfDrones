@@ -3,6 +3,8 @@ package grupo2.fod.fogofdrones.service;
 // ver como adaptar a servicios usando varias partidas
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -13,7 +15,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import grupo2.fod.fogofdrones.service.logica.Equipo;
 import grupo2.fod.fogofdrones.service.logica.FasePartida;
-import grupo2.fod.fogofdrones.service.logica.Jugador;
 import grupo2.fod.fogofdrones.service.logica.Partida;
 import grupo2.fod.fogofdrones.service.logica.Posicion;
 import grupo2.fod.fogofdrones.service.logica.Servicios;
@@ -22,8 +23,8 @@ import grupo2.fod.fogofdrones.service.valueObject.VoMensaje;
 // Controlador que administra las conexiones STOMP para el juego
 @Controller
 public class GameHandler {
-	
-	//private static final Logger LOGGER = LoggerFactory.getLogger(GameHandler.class);
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(GameHandler.class);
 	
 	@Autowired
 	private SimpMessagingTemplate messagingTemplate;
@@ -39,13 +40,22 @@ public class GameHandler {
 	public void handleActionMenu(@Payload Map<String, Object> data) {
 		try {
 			String nombre = (String) data.get("nombre");
+			LOGGER.info("Login solicitado por '{}'", nombre);
+
+			if (nombre == null || nombre.trim().isEmpty()) {
+				enviarErrorLogin("", "Nombre inválido");
+				LOGGER.warn("Login rechazado: nombre vacío o nulo");
+				return;
+			}
+
 			if (servicios.existePartida(nombre)) {
-						// error
+				enviarErrorLogin(nombre, "El jugador ya está en una partida activa");
+				LOGGER.warn("Login rechazado para '{}': ya tiene partida activa", nombre);
 			} else {
 				handleCrearJugador(nombre);
 			}
 		} catch (Exception e) {
-			//LOGGER.error("Error procesando acción: {}", e.getMessage(), e);
+			LOGGER.error("Error procesando login", e);
 		}
 	}
 	/**
@@ -119,19 +129,22 @@ public class GameHandler {
 		try {
 			if (jugador1 == null) {
 				jugador1 = nombre;
+				LOGGER.info("Jugador '{}' asignado como jugador1 (NAVAL)", nombre);
 				//LOGGER.info("Jugador 1 creado: {}", jugador1.getNombre());
 				
 				// Notificar al jugador 1 que es NAVAL
 				VoMensaje mensaje = new VoMensaje(nombre, Equipo.NAVAL);
 				String respuesta = mapper.writeValueAsString(mensaje);
 				//LOGGER.info("Enviando asignación NAVAL al jugador 1: {}", respuesta);
-				messagingTemplate.convertAndSend("/topic/game", respuesta);
+				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
 			} else if (jugador2 == null && !jugador1.equals(nombre)) {
 				jugador2 = nombre;
+				LOGGER.info("Jugador '{}' asignado como jugador2 (AEREO)", nombre);
 				//LOGGER.info("Jugador 2 creado: {}", jugador2.getNombre());
 				servicios.crearPartida(jugador1, jugador2);
 				String clave = servicios.generarClave(jugador1, jugador2);
+				LOGGER.info("Partida creada con clave '{}'", clave);
 				//LOGGER.info("Partida creada con jugadores: {} y {}", jugador1.getNombre(), jugador2.getNombre());
 				jugador1 = null;
 				jugador2 = null;
@@ -139,19 +152,32 @@ public class GameHandler {
 				VoMensaje mensaje = new VoMensaje(nombre, Equipo.AEREO);
 				String respuesta = mapper.writeValueAsString(mensaje);
 				//LOGGER.info("Enviando asignación AEREO al jugador 2: {}", respuesta);
-				messagingTemplate.convertAndSend("/topic/game", respuesta);
+				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
 				// Enviar estado inicial del juego a todos los jugadores
+				// // // // // // // // estaria bueno recibir esto al conectarse a game no aca
 				Partida p = servicios.getPartidaJugador(nombre);
 				String estadoInicial = mensajeRetorno(p);
 				//LOGGER.info("Enviando estado inicial de la partida (tamaño: {} chars)", estadoInicial != null ? estadoInicial.length() : 0);
 				messagingTemplate.convertAndSend("/topic/game", estadoInicial);
 				//LOGGER.info("Estado inicial de la partida enviado a todos los jugadores");
 			} else {
-				//LOGGER.warn("Intento de conexión duplicada del jugador: {}", nombre);
+				enviarErrorLogin(nombre, "No se pudo asignar jugador. Intenta nuevamente");
+				LOGGER.warn("Login no asignado para '{}'. Estado actual jugador1='{}', jugador2='{}'", nombre, jugador1, jugador2);
 			}
 		} catch (Exception e) {
-			//LOGGER.error("Error al crear jugador: {}", e.getMessage(), e);
+			LOGGER.error("Error al crear jugador '{}'", nombre, e);
+			enviarErrorLogin(nombre, "Error interno al crear jugador");
+		}
+	}
+
+	private void enviarErrorLogin(String nombre, String error) {
+		try {
+			VoMensaje mensajeError = new VoMensaje(nombre, error);
+			String respuesta = mapper.writeValueAsString(mensajeError);
+			messagingTemplate.convertAndSend("/topic/login", respuesta);
+		} catch (Exception ex) {
+			LOGGER.error("Error enviando mensaje de error de login para '{}'", nombre, ex);
 		}
 	}
 		

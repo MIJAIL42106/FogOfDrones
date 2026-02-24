@@ -25,16 +25,12 @@ public class Servicios{
     private Map<String,Partida> partidas = new ConcurrentHashMap<>();
 
     public void crearPartida(String jugador1, String jugador2) {
-        String clave = generarClave(jugador1, jugador2);
         
+        String clave = generarClave(jugador1, jugador2);
         if (partidas.containsKey(clave)) {        // ya existe una partidad con esos jugadores
-            System.out.println("Error: ya existe una partida con esos jugadores");
         } else {
             Jugador naval = repo.findById(jugador1).orElse(new Jugador(jugador1, 0, 0, false));
             Jugador aereo = repo.findById(jugador2).orElse(new Jugador(jugador2, 0, 0, false));
-        
-            repo.delete(naval);
-            repo.delete(aereo);
 
             naval.setJugando(true);
             aereo.setJugando(true);
@@ -95,12 +91,10 @@ public class Servicios{
         Equipo ganador = partida.getEquipoGanador();
         switch (ganador) {
             case NAVAL: {
-                repo.delete(partida.getJugadorNaval());
                 partida.getJugadorNaval().sumarVictoria();
                 partida.getJugadorNaval().sumarPuntos(10); // Ejemplo de puntos por victoria
             } break;
             case AEREO: {
-                repo.delete(partida.getJugadorAereo());
                 partida.getJugadorAereo().sumarVictoria();
                 partida.getJugadorAereo().sumarPuntos(10); // Ejemplo de puntos por victoria
             } break;
@@ -133,9 +127,7 @@ public class Servicios{
             String clave = generarClave(jugadorN, jugadorA);
             partidas.put(clave, partida);
             repoPartidas.delete(persistencia);
-        } else {
-            System.out.println("Error: no se encontró una partida con ese nombre");
-        }  
+        }
 
     }
 

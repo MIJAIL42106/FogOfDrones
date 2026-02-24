@@ -61,11 +61,6 @@ class Celda {                                   // calse celda para grilla
             }
         });
         
-        this.tile.on('pointerover', () => {
-            grid.indx.setText("X: "+x);
-            grid.indy.setText("Y: "+y);
-        });
-        
         grid.tablero.add(this.tile);            // agrega el rectangulo creado a el tablero
     }
 }   
@@ -78,6 +73,16 @@ class escena3 extends Phaser.Scene {
 
     init(data){
         mensaje.nombre = data.nombre;
+        gameState.equipo = data.equipo;
+    }
+
+    getSocketCandidates() {
+        const customBase = window.FOG_BACKEND_URL || localStorage.getItem('fogBackendUrl');
+        const bases = [customBase, window.location.origin, 'http://26.169.248.78:8080']
+            .filter(Boolean)
+            .map(base => base.replace(/\/$/, ''));
+
+        return [...new Set(bases)].map(base => base + '/game');
     }
                                                 // carga de assets
     preload() {                                 // fondo, escenario, tile, dronN, dronA, portaN, portaA, explosiones // ver cohete despues
@@ -96,7 +101,6 @@ class escena3 extends Phaser.Scene {
     }
 
     create() {
-        //this.graphics = this.add.graphics();
         this.crearFondo();
         this.crearAnimaciones();
 
@@ -114,20 +118,6 @@ class escena3 extends Phaser.Scene {
         portadronN.setMask(this.mask);
         portadronA.setMask(this.mask);
 
-        let indice = 0;                                 // indice para pruebas de posiciones de modifciaciones de celdas
-                                                        // crecion de textos de control de variables y eventos
-        
-        let prueba = this.add.text(1500 , 900,"ii: "+ mensaje.nombre, { fill: "#222222", font: "40px Times New Roman"});
-
-        this.indiceprueba = this.add.text(1700 , 800,"msg: ", { fill: "#222222", font: "40px Times New Roman"});
-        this.pruebasi = this.add.text(1500 , 800,"faselocal: " + gameState.fase, { fill: "#222222", font: "40px Times New Roman"});
-        this.indx = this.add.text(1700 , 900,"iX: ", { fill: "#222222", font: "40px Times New Roman"});
-        this.indy = this.add.text(1700 , 1000,"iY: ", { fill: "#222222", font: "40px Times New Roman"});    
-        this.eq = this.add.text(1500 , 1000,"equipo: ", { fill: "#222222", font: "40px Times New Roman"});
-
-        this.drs = this.add.text(1500 , 700,"drs: " , { fill: "#222222", font: "40px Times New Roman"});
-                                                        
-        // conexion STOMP con SockJS
         this.conectarSTOMP();
 
         this.tablero = this.add.container (gameState.tableroX, gameState.tableroY);     // creaccion de elemento container que almacenara las celdas 
@@ -141,27 +131,35 @@ class escena3 extends Phaser.Scene {
 
     // establece conexion STOMP con SockJS
     conectarSTOMP() {
-        // conexion socket con SockJS
-        const socket = new SockJS('http://26.169.248.78:8080/game'); 
-        this.stompClient = Stomp.over(socket);
-        
-        this.stompClient.debug = null;// deshabilita logs de debug
-        
-        // conectar STOMP
-        this.stompClient.connect({}, (frame) => {
-            // suscribirse a topic /topic/game
-            this.stompClient.subscribe('/topic/game', (message) => {
-                var msg = JSON.parse(message.body);
-                
-                this.indiceprueba.setText("msg: " + msg.tipoMensaje);
-                
-                // procesar mensaje
+        if (this.connectingStomp || (this.stompClient && this.stompClient.connected)) {
+            return;
+        }
+
+        const socketCandidates = this.getSocketCandidates();
+        this.connectingStomp = true;
+
+        const intentarConexion = (index) => {
+            if (index >= socketCandidates.length) {
+                this.connectingStomp = false;
+                return;
+            }
+
+            const socket = new SockJS(socketCandidates[index]); 
+            const stompClient = Stomp.over(socket);
+            stompClient.debug = null;
+
+            stompClient.connect({}, () => {
+                this.stompClient = stompClient;
+                this.connectingStomp = false;
+
+                this.stompClient.subscribe('/topic/game', (message) => {
+                    var msg = JSON.parse(message.body);
+
                 switch (msg.tipoMensaje) {
                     case 0: {
                         if (mensaje.nombre === msg.nombre) {
                             gameState.equipo = msg.equipo.toString();
                         }
-                        this.eq.setText("equipo: " + gameState.equipo);
                     } break;
                     case 1: {
                         if (gameState.fase !== msg.fasePartida.toString()) {
@@ -170,7 +168,6 @@ class escena3 extends Phaser.Scene {
                             } 
                             gameState.fase = msg.fasePartida.toString();
                         }
-                        this.pruebasi.setText("faselocal: " + gameState.fase);
                         this.forma.clear(); 
                         this.forma.fillStyle(0xff0000, 0);
                         this.eliminarDrones();
@@ -205,14 +202,15 @@ class escena3 extends Phaser.Scene {
                         }
                     } break;
                 }
+                });
+                
+                this.enviarMensage(JSON.stringify(mensaje));
+            }, () => {
+                intentarConexion(index + 1);
             });
-            
-            this.enviarMensage(JSON.stringify(mensaje));
-            
-        });/*, (error) => {
-            // Intentar reconectar después de 5 segundos
-            setTimeout(() => this.conectarSTOMP(), 5000);
-        });*/
+        };
+
+        intentarConexion(0);
     }
 
     crearAnimaciones(){
@@ -373,19 +371,13 @@ class escena3 extends Phaser.Scene {
 
     enviarMensage(data) {
         if (this.stompClient && this.stompClient.connected) {
-            // enviar mensaje a /app/accion, servidor recibe en @MessageMapping("/accion")
             this.stompClient.send("/app/accion", {}, data);
-        } else {
-            console.error('Cliente STOMP no conectado');
         }
     }
 
-    // cierra conexion STOMP al salir
     apagar() {
         if (this.stompClient && this.stompClient.connected) {
-            this.stompClient.disconnect(() => {
-                console.log('Desconectado de STOMP');
-            });
+            this.stompClient.disconnect();
         }
     }
     

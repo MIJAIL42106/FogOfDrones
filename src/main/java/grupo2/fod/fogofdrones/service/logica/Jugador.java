@@ -5,6 +5,8 @@ import java.io.Serializable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
@@ -19,7 +21,7 @@ public class Jugador implements Serializable{
     @Column(name = "puntos")
     private int puntos;
     @Column(name = "jugando")
-    private boolean jugando;
+    private Boolean jugando;
 
     public Jugador(){}
 
@@ -43,7 +45,7 @@ public class Jugador implements Serializable{
     }
 
     public boolean getJugando() {
-        return jugando;
+        return Boolean.TRUE.equals(jugando);
     }
 
     public void sumarVictoria() {
@@ -56,6 +58,14 @@ public class Jugador implements Serializable{
 
     public void setJugando(boolean jugandoParam) {
         jugando = jugandoParam;
+    }
+
+    @PrePersist
+    @PreUpdate
+    public void normalizarCamposNulos() {
+        if (jugando == null) {
+            jugando = false;
+        }
     }
 
 }
