@@ -298,7 +298,7 @@ class escena3 extends Phaser.Scene {
         } else {
             this.zonaDesp = this.add.rectangle(63*gameState.escala+gameState.tableroX+11, gameState.tableroY-11, anchoZona, altoZona, gameState.colorRojo).setOrigin(1,0);
         }
-        this.zonaDesp.setStrokeStyle(1, gameState.bordes).setAlpha(0.6).setDepth(1); 
+        this.zonaDesp.setStrokeStyle(1, gameState.bordes).setAlpha(0.4).setDepth(1); 
         
         const tamBtn = 333 ;
         const sep = 35 ;

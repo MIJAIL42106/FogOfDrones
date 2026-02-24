@@ -5,8 +5,6 @@ import java.io.Serializable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
@@ -20,16 +18,13 @@ public class Jugador implements Serializable{
     private int victorias;
     @Column(name = "puntos")
     private int puntos;
-    @Column(name = "jugando")
-    private Boolean jugando;
 
     public Jugador(){}
 
-    public Jugador(String nombreParam, int victoriasParam, int puntosParam, boolean jugandoParam) {
+    public Jugador(String nombreParam, int victoriasParam, int puntosParam) {
         nombre = nombreParam;
         victorias = victoriasParam;
         puntos = puntosParam;
-        jugando = jugandoParam;
     }
 
     public String getNombre() {
@@ -44,9 +39,6 @@ public class Jugador implements Serializable{
         return puntos;
     }
 
-    public boolean getJugando() {
-        return Boolean.TRUE.equals(jugando);
-    }
 
     public void sumarVictoria() {
         victorias++;
@@ -54,18 +46,6 @@ public class Jugador implements Serializable{
 
     public void sumarPuntos(int puntosParam) {
         puntos += puntosParam;
-    }
-
-    public void setJugando(boolean jugandoParam) {
-        jugando = jugandoParam;
-    }
-
-    @PrePersist
-    @PreUpdate
-    public void normalizarCamposNulos() {
-        if (jugando == null) {
-            jugando = false;
-        }
     }
 
 }

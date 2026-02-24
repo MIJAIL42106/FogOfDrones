@@ -28,12 +28,10 @@ public class Servicios{
         
         String clave = generarClave(jugador1, jugador2);
         if (partidas.containsKey(clave)) {        // ya existe una partidad con esos jugadores
+            System.out.println("Error: ya existe una partida con esos jugadores");
         } else {
-            Jugador naval = repo.findById(jugador1).orElse(new Jugador(jugador1, 0, 0, false));
-            Jugador aereo = repo.findById(jugador2).orElse(new Jugador(jugador2, 0, 0, false));
-
-            naval.setJugando(true);
-            aereo.setJugando(true);
+            Jugador naval = repo.findById(jugador1).orElse(new Jugador(jugador1, 0, 0));
+            Jugador aereo = repo.findById(jugador2).orElse(new Jugador(jugador2, 0, 0));
 
             repo.save(naval);
             repo.save(aereo);
@@ -93,19 +91,17 @@ public class Servicios{
             case NAVAL: {
                 partida.getJugadorNaval().sumarVictoria();
                 partida.getJugadorNaval().sumarPuntos(10); // Ejemplo de puntos por victoria
+                repo.save(partida.getJugadorNaval());
             } break;
             case AEREO: {
                 partida.getJugadorAereo().sumarVictoria();
                 partida.getJugadorAereo().sumarPuntos(10); // Ejemplo de puntos por victoria
+                repo.save(partida.getJugadorAereo());
             } break;
             default:
                 // Empate, no se suman victorias ni puntos
                 break;
         }
-        partida.getJugadorNaval().setJugando(false);
-        partida.getJugadorAereo().setJugando(false);
-        repo.save(partida.getJugadorNaval());
-        repo.save(partida.getJugadorAereo());
         eliminarPartida(nombre1, nombre2);
     }
 
@@ -127,6 +123,8 @@ public class Servicios{
             String clave = generarClave(jugadorN, jugadorA);
             partidas.put(clave, partida);
             repoPartidas.delete(persistencia);
+        } else {
+            System.out.println("Error: no se encontró una partida con ese nombre");
         }
 
     }
