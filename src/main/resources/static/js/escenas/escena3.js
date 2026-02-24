@@ -98,12 +98,17 @@ class escena3 extends Phaser.Scene {
         this.load.image("PortaA",".//assets/sprites/PortaRojo-64x64x1.png");
         this.load.spritesheet("DronN",".//assets/sprites/DronVerde-64x64x2.png",{frameWidth: 64, frameHeight: 64});
         this.load.spritesheet("DronA",".//assets/sprites/DronRojo-64x64x2.png",{frameWidth: 64, frameHeight: 64});
+        this.load.spritesheet("ImpactoDronN",".//assets/sprites/ExpDronN-399x399x4x3.png",{frameWidth: 399, frameHeight: 399});
+        this.load.spritesheet("ImpactoDronA",".//assets/sprites/ExpDronA-399x399x4x3.png",{frameWidth: 399, frameHeight: 399});
+        this.load.spritesheet("ImpactoPortaN",".//assets/sprites/ExpPortaN-399x399x4x3.png",{frameWidth: 399, frameHeight: 399});
+        this.load.spritesheet("ImpactoPortaA",".//assets/sprites/ExpPortaA-399x399x4x3.png",{frameWidth: 399, frameHeight: 399});
     }
 
     create() {
         this.crearFondo();
         this.crearAnimaciones();
 
+        // podria hacerse funcion crearPortadrones
         const portadronN = this.add.image(gameState.portaNX*gameState.escala + gameState.tableroX + 11, gameState.portaNY*gameState.escala + gameState.tableroY-27,"PortaN").setDepth(2).setOrigin(0.5, 0.5);
         portadronN.setScale(1.5);
         const portadronA = this.add.image(gameState.portaAX*gameState.escala + gameState.tableroX - 11, gameState.portaAY*gameState.escala + gameState.tableroY+27,"PortaA").setDepth(2).setOrigin(0.5, 0.5);
@@ -127,6 +132,8 @@ class escena3 extends Phaser.Scene {
                 new Celda(this,i,j);                    // al crearse la celda se agrega sola a container tablero
             }
         } 
+        
+
     }
 
     // establece conexion STOMP con SockJS
@@ -228,7 +235,7 @@ class escena3 extends Phaser.Scene {
             repeat: -1,
         });
     }
-
+    // podria no pasarse el boton
     botonPasar(boton) {
         const p = boton;
         var pos = boton.x;
@@ -259,7 +266,16 @@ class escena3 extends Phaser.Scene {
         fondo.setScale(1);                              // seteo de escala de fondo, hecho a medida, escala 1
         var escenario = this.add.image(38, 48,"Escenario").setOrigin(0, 0).setDepth(0);
         escenario.setScale(1);
-
+        var zonaDesp;
+        const anchoZona = 15 * gameState.tamCelda; // ancho de zona despligue 15 casillas   // hacer metodo que se borran cuando pasa a jugando
+        const altoZona = (gameState.alto-1) * gameState.tamCelda;   // -1 
+        if (gameState.equipo === "NAVAL") {
+            zonaDesp = this.add.rectangle(gameState.tableroX-11, gameState.tableroY-11, anchoZona, altoZona, gameState.colorVerde).setOrigin(0,0);
+        } else {
+            zonaDesp = this.add.rectangle(63*gameState.escala+gameState.tableroX+11, gameState.tableroY-11, anchoZona, altoZona, gameState.colorRojo).setOrigin(1,0);
+        }
+        zonaDesp.setStrokeStyle(1, gameState.bordes).setAlpha(0.6).setDepth(1); 
+        
         const tamBtn = 333 ;
         const sep = 35 ;
         var pos = 200 ;
