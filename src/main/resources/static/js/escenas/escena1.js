@@ -25,11 +25,12 @@ class escena1 extends Phaser.Scene {
         this.pendingLoginPayload = null;
         this.awaitingLoginResponse = false;
         this.startedPartida = false;
+        this.buscandoPartida = false;
 
         this.crearNombreInput();
         this.conectarSTOMP();
     
-        const jugarBtn = this.add.text(width / 2, height - 50, 'Jugar', {
+        this.jugarBtn = this.add.text(width / 2, height - 50, 'Jugar', {
             fontSize: '40px',
             color: '#ffffff',
             backgroundColor: '#4bae5f',
@@ -37,8 +38,19 @@ class escena1 extends Phaser.Scene {
         }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
+        // Estado visual esperando
+        this.estadoTexto = this.add.text(width / 2, height - 120, '', {
+            fontSize: '24px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
         
-        jugarBtn.on('pointerdown', () => {
+        this.jugarBtn.on('pointerdown', () => {
+            if (this.buscandoPartida) {
+                // Cancelar búsqueda
+                this.cancelarBusqueda();
+                return;
+            }
+
             mensajeLogin.nombre = this.nombreInput.value.trim();
 
             if (!mensajeLogin.nombre) {
@@ -46,6 +58,12 @@ class escena1 extends Phaser.Scene {
                 return;
             }
 
+            this.buscandoPartida = true;
+            this.nombreInput.disabled = true;
+            this.jugarBtn.setText('Cancelar');
+            this.jugarBtn.setBackgroundColor('#ff6b6b');
+            this.estadoTexto.setText('Esperando contrincante...');
+            
             this.awaitingLoginResponse = true;
             const payload = JSON.stringify(mensajeLogin);
             if (this.stompClient && this.stompClient.connected) {
@@ -56,6 +74,15 @@ class escena1 extends Phaser.Scene {
             }
 
         });
+    }
+
+    cancelarBusqueda() {
+        this.buscandoPartida = false;
+        this.awaitingLoginResponse = false;
+        this.nombreInput.disabled = false;
+        this.jugarBtn.setText('Jugar');
+        this.jugarBtn.setBackgroundColor('#4bae5f');
+        this.estadoTexto.setText('');
     }
 
     getSocketCandidates() {
@@ -127,15 +154,33 @@ class escena1 extends Phaser.Scene {
                     const nombreRemoto = this.normalizarNombre(msg.nombre);
                     const mismoJugador = nombreLocal.length > 0 && nombreLocal === nombreRemoto;
 
+                    // Solo manejar errores aquí
                     if (msg && msg.tipoMensaje === 2 && mismoJugador) {
                         this.awaitingLoginResponse = false;
+                        this.buscandoPartida = false;
+                        this.nombreInput.disabled = false;
+                        this.jugarBtn.setText('Jugar');
+                        this.jugarBtn.setBackgroundColor('#4bae5f');
+                        this.estadoTexto.setText('');
                         alert(msg.error || 'No se pudo iniciar sesión');
                         return;
                     }
+                });
 
-                    const esperandoYConEquipo = this.awaitingLoginResponse && msg && msg.equipo != null;
+                // Suscribirse al tópico de partida lista (cuando haya 2 jugadores)
+                this.stompClient.subscribe('/topic/partida-lista', (message) => {
+                    let msg;
+                    try {
+                        msg = JSON.parse(message.body);
+                    } catch (error) {
+                        return;
+                    }
 
-                    if (mismoJugador || esperandoYConEquipo) {
+                    const nombreLocal = this.normalizarNombre(mensajeLogin.nombre);
+                    const nombreRemoto = this.normalizarNombre(msg.nombre);
+                    const mismoJugador = nombreLocal.length > 0 && nombreRemoto && nombreLocal === nombreRemoto;
+
+                    if (mismoJugador && this.buscandoPartida) {
                         this.iniciarPartida(mensajeLogin.nombre, msg.equipo);
                     }
                 });
@@ -184,9 +229,10 @@ class escena1 extends Phaser.Scene {
 
         this.domElements = [this.nombreInput];
     }
+    
     shutdown() {
         if (this.stompClient && this.stompClient.connected) {
-            this.stompClient.disconnect();
+            his.stompClient.disconnect();
         }
         if (this.domElements) {
             this.domElements.forEach(element => {
@@ -194,6 +240,6 @@ class escena1 extends Phaser.Scene {
                     element.parentNode.removeChild(element);
                 }
             });
-        }
+        }   
     }
 }

@@ -146,17 +146,32 @@ public class GameHandler {
 				String clave = servicios.generarClave(jugador1, jugador2);
 				LOGGER.info("Partida creada con clave '{}'", clave);
 				//LOGGER.info("Partida creada con jugadores: {} y {}", jugador1.getNombre(), jugador2.getNombre());
-				jugador1 = null;
-				jugador2 = null;
+
 				// Notificar al jugador 2 que es AEREO
 				VoMensaje mensaje = new VoMensaje(nombre, Equipo.AEREO);
 				String respuesta = mapper.writeValueAsString(mensaje);
 				//LOGGER.info("Enviando asignación AEREO al jugador 2: {}", respuesta);
 				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
+				// Notificar a ambos jugadores que la partida está lista
+				VoMensaje mensajeJugador1 = new VoMensaje(jugador1, Equipo.NAVAL);
+				String respuestaJugador1 = mapper.writeValueAsString(mensajeJugador1);
+				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador1);
+				//LOGGER.info("Notificación de partida lista enviada a jugador 1: {}", jugador1);
+				
+				VoMensaje mensajeJugador2 = new VoMensaje(nombre, Equipo.AEREO);
+				String respuestaJugador2 = mapper.writeValueAsString(mensajeJugador2);
+				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador2);
+				//LOGGER.info("Notificación de partida lista enviada a jugador 2: {}", nombre);
+				
+				String temp1 = jugador1;
+				String temp2 = jugador2;
+				jugador1 = null;
+				jugador2 = null;
+				
 				// Enviar estado inicial del juego a todos los jugadores
 				// // // // // // // // estaria bueno recibir esto al conectarse a game no aca
-				Partida p = servicios.getPartidaJugador(nombre);
+				Partida p = servicios.getPartidaJugador(temp2);
 				String estadoInicial = mensajeRetorno(p);
 				//LOGGER.info("Enviando estado inicial de la partida (tamaño: {} chars)", estadoInicial != null ? estadoInicial.length() : 0);
 				messagingTemplate.convertAndSend("/topic/game", estadoInicial);
