@@ -58,28 +58,21 @@ public class GameHandler {
 			LOGGER.error("Error procesando login", e);
 		}
 	}
-	/**
-	 * Endpoint principal que maneja todas las acciones del juego
-	 * Los clientes envían mensajes a /app/accion
-	 * Las respuestas se envían a /topic/game para que todos los suscritos las reciban
-	 */
+	
+	//Endpoint principal que maneja todas las acciones del juego
+	//Los clientes envían mensajes a /app/accion
+	//Las respuestas se envían a /topic/game para que todos los suscritos las reciban
 	@MessageMapping("/accion")
 	public void handleAction(@Payload Map<String, Object> data) {
 		try {
-			//LOGGER.info("========== MENSAJE RECIBIDO ==========");
-			//LOGGER.info("Datos completos: {}", data);
-			
 			String nombre = (String) data.get("nombre");
-			
-			//LOGGER.info("Acción recibida de: {}", nombre);
-			
+
 			// Obtener la partida asociada a este jugador
 			Partida p = servicios.getPartidaJugador(nombre);
 			
 			if (p.esMiTurno(nombre)) {
 				// Si es el turno del jugador, procesar la acción
 				String accion = (String) data.get("accion");
-				//LOGGER.info("{} - {}", nombre, accion);
 				
 				if (p.getFasePartida() == FasePartida.DESPLIEGUE) {
 					handleDesplegar(data, p);
@@ -98,19 +91,16 @@ public class GameHandler {
 							p.terminarTurno();
 							break;
 						default:
-							//LOGGER.warn("Acción desconocida: {}", accion);
+							//Acción desconocida
 							break;
 					}
 				}
 				
 				// Enviar estado actualizado a todos los clientes
-				//LOGGER.info("Enviando estado actualizado después de acción...");
 				String respuesta = mensajeRetorno(p);
 				messagingTemplate.convertAndSend("/topic/game", respuesta);
-				//LOGGER.info("Estado actualizado enviado a todos los clientes");
 				
 			} else {
-				//LOGGER.info("No es tu turno: {}", nombre);
 				// Enviar mensaje de error al jugador
 				VoMensaje mensajeError = new VoMensaje(nombre, "No es tu turno");
 				String respuesta = mapper.writeValueAsString(mensajeError);
@@ -118,51 +108,44 @@ public class GameHandler {
 			}
 			
 		} catch (Exception e) {
-			//LOGGER.error("Error procesando acción: {}", e.getMessage(), e);
+			//Error procesando acción: 
 		}
 	}
 	
-	/**
-	 * Maneja la creación de jugadores y partida
-	 */
+	
+	//Maneja la creación de jugadores y partida
+	 
 	private void handleCrearJugador(String nombre) {
 		try {
 			if (jugador1 == null) {
 				jugador1 = nombre;
 				LOGGER.info("Jugador '{}' asignado como jugador1 (NAVAL)", nombre);
-				//LOGGER.info("Jugador 1 creado: {}", jugador1.getNombre());
 				
 				// Notificar al jugador 1 que es NAVAL
 				VoMensaje mensaje = new VoMensaje(nombre, Equipo.NAVAL);
 				String respuesta = mapper.writeValueAsString(mensaje);
-				//LOGGER.info("Enviando asignación NAVAL al jugador 1: {}", respuesta);
 				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
 			} else if (jugador2 == null && !jugador1.equals(nombre)) {
 				jugador2 = nombre;
 				LOGGER.info("Jugador '{}' asignado como jugador2 (AEREO)", nombre);
-				//LOGGER.info("Jugador 2 creado: {}", jugador2.getNombre());
 				servicios.crearPartida(jugador1, jugador2);
 				String clave = servicios.generarClave(jugador1, jugador2);
 				LOGGER.info("Partida creada con clave '{}'", clave);
-				//LOGGER.info("Partida creada con jugadores: {} y {}", jugador1.getNombre(), jugador2.getNombre());
 
 				// Notificar al jugador 2 que es AEREO
 				VoMensaje mensaje = new VoMensaje(nombre, Equipo.AEREO);
 				String respuesta = mapper.writeValueAsString(mensaje);
-				//LOGGER.info("Enviando asignación AEREO al jugador 2: {}", respuesta);
 				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
 				// Notificar a ambos jugadores que la partida está lista
 				VoMensaje mensajeJugador1 = new VoMensaje(jugador1, Equipo.NAVAL);
 				String respuestaJugador1 = mapper.writeValueAsString(mensajeJugador1);
 				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador1);
-				//LOGGER.info("Notificación de partida lista enviada a jugador 1: {}", jugador1);
 				
 				VoMensaje mensajeJugador2 = new VoMensaje(nombre, Equipo.AEREO);
 				String respuestaJugador2 = mapper.writeValueAsString(mensajeJugador2);
 				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador2);
-				//LOGGER.info("Notificación de partida lista enviada a jugador 2: {}", nombre);
 				
 				String temp1 = jugador1;
 				String temp2 = jugador2;
@@ -173,9 +156,7 @@ public class GameHandler {
 				// // // // // // // // estaria bueno recibir esto al conectarse a game no aca
 				Partida p = servicios.getPartidaJugador(temp2);
 				String estadoInicial = mensajeRetorno(p);
-				//LOGGER.info("Enviando estado inicial de la partida (tamaño: {} chars)", estadoInicial != null ? estadoInicial.length() : 0);
 				messagingTemplate.convertAndSend("/topic/game", estadoInicial);
-				//LOGGER.info("Estado inicial de la partida enviado a todos los jugadores");
 			} else {
 				enviarErrorLogin(nombre, "No se pudo asignar jugador. Intenta nuevamente");
 				LOGGER.warn("Login no asignado para '{}'. Estado actual jugador1='{}', jugador2='{}'", nombre, jugador1, jugador2);
@@ -196,23 +177,18 @@ public class GameHandler {
 		}
 	}
 		
-	/**
-	 * Maneja el despliegue de drones en la fase inicial
-	 */
+	//Maneja el despliegue de drones en la fase inicial
+	 
 	public void handleDesplegar(Map<String, Object> data, Partida p) {
 		int x = (int) data.get("xi");
 		int y = (int) data.get("yi");
 		Posicion pos = new Posicion(x, y);
 
 		p.desplegarDron(pos);
-
-		//LOGGER.info("Dron desplegado en: {}, {}", x, y);
-		//LOGGER.info("Turno: {}", p.getTurno());
 	}
 
-	/**
-	 * Maneja el movimiento de drones
-	 */
+	//Maneja el movimiento de drones
+	
 	public void handleMover(Map<String, Object> data, Partida p) {
 		int xi = (int) data.get("xi");
 		int yi = (int) data.get("yi");
@@ -222,14 +198,11 @@ public class GameHandler {
 		Posicion posf = new Posicion(xf, yf);
 		
 		p.mover(posi, posf);
-
-		//LOGGER.info("Dron se movió desde: {}, {} hasta: {}, {}", xi, yi, xf, yf);
-		//LOGGER.info("Turno: {}", p.getTurno());
 	}
 
-	/**
-	 * Maneja los ataques entre drones
-	 */
+	
+	//aneja los ataques entre drones
+	
 	public void handleAtacar(Map<String, Object> data, Partida p) {
 		int xi = (int) data.get("xi");
 		int yi = (int) data.get("yi");
@@ -239,44 +212,31 @@ public class GameHandler {
 		Posicion posf = new Posicion(xf, yf);
 		
 		p.atacar(posi, posf);
-
-		//LOGGER.info("Dron atacó desde: {}, {} hasta: {}, {}", xi, yi, xf, yf);
-		//LOGGER.info("Turno: {}", p.getTurno());
 	}
 
-	/**
-	 * Maneja la recarga de munición
-	 */
+	
+	//Maneja la recarga de munición
+	
 	public void handleRecargar(Map<String, Object> data, Partida p) {
 		int x = (int) data.get("xi");
 		int y = (int) data.get("yi");
 		Posicion pos = new Posicion(x, y);
 		
 		p.recargarMunicion(pos);
-
-		//LOGGER.info("Dron recargó munición en: {}, {}", x, y);
-		//LOGGER.info("Turno: {}", p.getTurno());
 	}
 
-	/**
-	 * Genera el mensaje de retorno con el estado actual del juego
-	 */
+	
+	//Genera el mensaje de retorno con el estado actual del juego
+	
 	public String mensajeRetorno(Partida p) {
 		String t = null;
 		try {
-			//LOGGER.info("Generando mensaje de retorno...");
 			// Crear VoMensaje con la fase y la grilla completa
 			VoMensaje mensaje = new VoMensaje(p.getFasePartida(), p.getTablero());
 			t = mapper.writeValueAsString(mensaje);
-			//LOGGER.info("Estado del juego serializado exitosamente - Tamaño: {} chars", t.length());
-			//LOGGER.debug("Contenido del mensaje (primeros 200 chars): {}", t.substring(0, Math.min(200, t.length())));
 		} catch (Exception e) {
-			//LOGGER.error("Error al serializar el estado del juego", e);
 			e.printStackTrace();
 		}
 		return t;
 	}
-	
-
-
 }

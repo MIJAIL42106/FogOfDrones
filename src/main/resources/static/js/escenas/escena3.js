@@ -111,7 +111,7 @@ class escena3 extends Phaser.Scene {
         this.crearFondo();
         this.crearAnimaciones();
 
-        // podria hacerse funcion crearPortadrones
+        // podria hacerse metodo crearPortadrones
         const portadronN = this.add.image(gameState.portaNX*gameState.escala + gameState.tableroX + 11, gameState.portaNY*gameState.escala + gameState.tableroY-27,"PortaN").setDepth(2).setOrigin(0.5, 0.5);
         portadronN.setScale(1.5);
         const portadronA = this.add.image(gameState.portaAX*gameState.escala + gameState.tableroX - 11, gameState.portaAY*gameState.escala + gameState.tableroY+27,"PortaA").setDepth(2).setOrigin(0.5, 0.5);
@@ -124,9 +124,7 @@ class escena3 extends Phaser.Scene {
         this.mask = this.forma.createGeometryMask();
 
         portadronN.setMask(this.mask);
-        portadronA.setMask(this.mask);
-
-        
+        portadronA.setMask(this.mask);   
 
         this.tablero = this.add.container (gameState.tableroX, gameState.tableroY);     // creaccion de elemento container que almacenara las celdas 
 
@@ -138,59 +136,15 @@ class escena3 extends Phaser.Scene {
     }
 
     conectarSTOMP() {
-        console.error('1111111');
         window.conexionWS.conectar(() => {
-            console.error('222222');
             window.conexionWS.suscribir('/topic/game', (message) => {
-                console.error('33333333333');
                 this.procesarMensaje(message);
             });
             this.enviarMensage(mensaje);
         }, (error) => {
             // Manejo de error de conexión
-            console.error('Error al conectar a WebSocket:', error);
-            alert('No se pudo conectar al servidor. Por favor, inténtalo de nuevo más tarde.');
         });
     }
-
-    /* establece conexion STOMP con SockJS
-    conectarSTOMP() {
-        if (this.connectingStomp || (this.stompClient && this.stompClient.connected)) {
-            return;
-        }
-
-        const socketCandidates = this.getSocketCandidates();
-        this.connectingStomp = true;
-
-        const intentarConexion = (index) => {
-            if (index >= socketCandidates.length) {
-                this.connectingStomp = false;
-                return;
-            }
-
-            const socket = new SockJS(socketCandidates[index]); 
-            const stompClient = Stomp.over(socket);
-            stompClient.debug = null;
-
-            stompClient.connect({}, () => {
-                this.stompClient = stompClient;
-                this.connectingStomp = false;
-
-                this.stompClient.subscribe('/topic/game', (message) => {
-                    var msg = JSON.parse(message.body);
-
-                    this.procesarMensaje(msg);
-
-                });
-                
-                this.enviarMensage(mensaje);
-            }, () => {
-                intentarConexion(index + 1);
-            });
-        };
-
-        intentarConexion(0);
-    }*/
 
     procesarMensaje(msg) {
         switch (msg.tipoMensaje) {
@@ -409,24 +363,10 @@ class escena3 extends Phaser.Scene {
 
     enviarMensage(data) {
         window.conexionWS.enviar('/app/accion', data);
-        /*if (this.stompClient && this.stompClient.connected) {
-            this.stompClient.send("/app/accion", {}, data);
-        }*/
     }
 
     shutdown() {
         window.conexionWS.desuscribir('/topic/accion');
-        /*
-        if (this.domElements) {
-            this.domElements.forEach(element => {
-                if (element && element.parentNode) {
-                    element.parentNode.removeChild(element);
-                }
-            });
-        }   */
-        /*if (this.stompClient && this.stompClient.connected) {
-            this.stompClient.disconnect();
-        }*/
     }
     
     update() {

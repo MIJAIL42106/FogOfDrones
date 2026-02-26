@@ -20,6 +20,11 @@ class escena1 extends Phaser.Scene {
 
     create() { 
         const { width, height } = this.cameras.main;
+        
+        //this.cameras.main.setBackgroundColor('#FF0000'); // Rojo
+        //this.cameras.main.setBackgroundColor('rgba(0, 0, 0, 0.5)'); // Transparente
+        document.body.style.backgroundColor = '#000000';  // este cubre todo el fondo, incluso el canvas
+        
         this.fondo = this.add.image(width / 2, height / 2, "FondoMenu");
         this.awaitingLoginResponse = false;
         this.startedPartida = false;

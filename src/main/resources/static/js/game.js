@@ -1,7 +1,7 @@
 var config = {
     type:Phaser.AUTO,
     scale: {
-        mode:Phaser.Scale.FIT, // scala automaticamente
+        mode:Phaser.Scale.FIT, // scala automaticamente // RESIZE
         autoCenter:Phaser.Scale.CENTER_BOTH, // centra automaticamente
         width:1920, // ancho de pantalla
         height:1080,// alto de pantalla
