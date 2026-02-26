@@ -4,12 +4,14 @@ import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Partida implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    @JsonIgnore
     private Mapa tablero;
     private Jugador jugadorAereo, jugadorNaval;
     private List<Dron> dronesAereos, dronesNavales;
@@ -494,6 +496,21 @@ public class Partida implements Serializable {
             es = true;
         }
         return es;
+    }
+
+    public void actualizarTablero() {
+        if (tablero == null) {
+            tablero = new Mapa();
+        } 
+        for (Dron dron : dronesNavales) {
+            tablero.agregarDron(dron, Equipo.NAVAL);
+        }
+
+        for (Dron dron : dronesAereos) {
+            tablero.agregarDron(dron, Equipo.AEREO);
+        }
+
+        actualizarVision();
     }
 
 }

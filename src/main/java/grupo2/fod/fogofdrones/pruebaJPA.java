@@ -16,13 +16,14 @@ public class pruebaJPA {
         // Obtener el bean Servicios desde el contexto
         Servicios service = context.getBean(Servicios.class);
 
+       
         String nombreJug1 = "Jorge";
         String nombreJug2 = "Juan";
 
         service.crearPartida(nombreJug1, nombreJug2);
 
         Posicion pos = new Posicion(0, 0);
-        /*
+         /* //
         Partida p = service.getPartida(nombreJug1, nombreJug2);
         p.desplegarDron(pos);
 
@@ -47,9 +48,9 @@ public class pruebaJPA {
         System.out.println("antes " + p.getTurno());
         service.guardarPartida(nombreJug1, nombreJug2);
         //
-        */
+        
 
-        //*
+        */
         service.cargarPartida(nombreJug1);
         Partida p = service.getPartida(nombreJug1, nombreJug2);
 
