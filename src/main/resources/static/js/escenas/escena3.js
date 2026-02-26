@@ -87,6 +87,8 @@ class escena3 extends Phaser.Scene {
     init(data){
         mensaje.nombre = data.nombre;
         gameState.equipo = data.equipo;
+        // canal dinámico recibido desde menú
+        this.canalPartida = data.canal;
     }
     
                                                 // carga de assets
@@ -137,6 +139,13 @@ class escena3 extends Phaser.Scene {
 
     conectarSTOMP() {
         window.conexionWS.conectar(() => {
+            // suscribir al canal específico de la partida (y mantener /topic/game como respaldo)
+            if (this.canalPartida) {
+                window.conexionWS.suscribir(this.canalPartida, (message) => {
+                    this.procesarMensaje(message);
+                });
+            }
+            // antiguo canal genérico queda vigente para compatibilidad
             window.conexionWS.suscribir('/topic/game', (message) => {
                 this.procesarMensaje(message);
             });
@@ -184,7 +193,9 @@ class escena3 extends Phaser.Scene {
 
             } break;
             case 2: {
-                if (mensaje.nombre === msg.nombre) { // alerta error
+                // Log message for debugging/visibility
+                console.log('Mensaje partida:', msg.error, msg);
+                if (mensaje.nombre === msg.nombre) { // alerta error al jugador afectado
                     alert(msg.error);
                 }
             } break;
@@ -367,6 +378,9 @@ class escena3 extends Phaser.Scene {
 
     shutdown() {
         window.conexionWS.desuscribir('/topic/accion');
+        if (this.canalPartida) {
+            window.conexionWS.desuscribir(this.canalPartida);
+        }
     }
     
     update() {

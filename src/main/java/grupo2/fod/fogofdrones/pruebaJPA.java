@@ -46,7 +46,6 @@ public class pruebaJPA {
 
         System.out.println("antes " + p.getTurno());
         service.guardarPartida(nombreJug1, nombreJug2);
-        //
         */
 
         //*
@@ -62,4 +61,3 @@ public class pruebaJPA {
 
     }
 }
-

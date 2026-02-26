@@ -12,6 +12,7 @@ public class VoMensaje {
     private String nombre;
     private Equipo equipo;
     private String error;
+    private String canal; // canal STOMP asociado a la partida
     
     public VoMensaje() {
         this.tipoMensaje = 0;
@@ -20,6 +21,7 @@ public class VoMensaje {
         this.fasePartida = null;    
         this.grilla = null;
         this.error = null;
+        this.canal = null;
     }
 
     public VoMensaje(String nombre, Equipo equipo) {
@@ -29,6 +31,7 @@ public class VoMensaje {
         this.fasePartida = null;    
         this.grilla = null;
         this.error = null;
+        this.canal = null;
     }
     
     public VoMensaje(FasePartida fasePartida, Mapa tablero) {
@@ -38,6 +41,7 @@ public class VoMensaje {
         this.nombre = null;
         this.equipo = null;
         this.error = null;
+        this.canal = null;
     }
 
     public VoMensaje(String nombre, String error) {
@@ -47,6 +51,7 @@ public class VoMensaje {
         this.fasePartida = null;
         this.grilla = null;
         this.equipo = null;
+        this.canal = null;
     }
 
     public int getTipoMensaje() {
@@ -73,6 +78,10 @@ public class VoMensaje {
         return error;
     }
 
+    public String getCanal() {
+        return canal;
+    }
+
     public void setTipoMensaje(int tipoMensaje) {
         this.tipoMensaje = tipoMensaje;
     }
@@ -95,6 +104,10 @@ public class VoMensaje {
 
     public void setError(String error) {
         this.error = error;
+    }
+
+    public void setCanal(String canal) {
+        this.canal = canal;
     }
 
 }

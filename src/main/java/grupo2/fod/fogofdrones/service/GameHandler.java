@@ -96,15 +96,17 @@ public class GameHandler {
 					}
 				}
 				
-				// Enviar estado actualizado a todos los clientes
+				// Enviar estado actualizado a todos los clientes en canal de la partida
 				String respuesta = mensajeRetorno(p);
-				messagingTemplate.convertAndSend("/topic/game", respuesta);
+				String canal = getCanalPartida(p);
+				messagingTemplate.convertAndSend(canal, respuesta);
 				
 			} else {
-				// Enviar mensaje de error al jugador
+				// Enviar mensaje de error al jugador en canal de la partida
 				VoMensaje mensajeError = new VoMensaje(nombre, "No es tu turno");
 				String respuesta = mapper.writeValueAsString(mensajeError);
-				messagingTemplate.convertAndSend("/topic/game", respuesta);
+				String canalError = getCanalPartida(p);
+				messagingTemplate.convertAndSend(canalError, respuesta);
 			}
 			
 		} catch (Exception e) {
@@ -139,11 +141,14 @@ public class GameHandler {
 				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
 				// Notificar a ambos jugadores que la partida está lista
-				VoMensaje mensajeJugador1 = new VoMensaje(jugador1, Equipo.NAVAL);
-				String respuestaJugador1 = mapper.writeValueAsString(mensajeJugador1);
-				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador1);
-				
-				VoMensaje mensajeJugador2 = new VoMensaje(nombre, Equipo.AEREO);
+                String canalPartida = getCanalPartida(servicios.getPartidaJugador(jugador2));
+                VoMensaje mensajeJugador1 = new VoMensaje(jugador1, Equipo.NAVAL);
+                mensajeJugador1.setCanal(canalPartida);
+                String respuestaJugador1 = mapper.writeValueAsString(mensajeJugador1);
+                messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador1);
+                
+                VoMensaje mensajeJugador2 = new VoMensaje(nombre, Equipo.AEREO);
+                mensajeJugador2.setCanal(canalPartida);
 				String respuestaJugador2 = mapper.writeValueAsString(mensajeJugador2);
 				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador2);
 				
@@ -153,10 +158,21 @@ public class GameHandler {
 				jugador2 = null;
 				
 				// Enviar estado inicial del juego a todos los jugadores
-				// // // // // // // // estaria bueno recibir esto al conectarse a game no aca
+				// Registrar listener para mensajes de partida -> enviar por STOMP en canal específico
 				Partida p = servicios.getPartidaJugador(temp2);
-				String estadoInicial = mensajeRetorno(p);
-				messagingTemplate.convertAndSend("/topic/game", estadoInicial);
+				if (p != null) {
+					String canalInicio = getCanalPartida(p);
+					p.setMensajeListener((vo) -> {
+						try {
+							String mensajeVo = mapper.writeValueAsString(vo);
+							messagingTemplate.convertAndSend(canalInicio, mensajeVo);
+						} catch (Exception ex) {
+							LOGGER.error("Error enviando VoMensaje de partida", ex);
+						}
+					});
+					String estadoInicial = mensajeRetorno(p);
+					messagingTemplate.convertAndSend(canalInicio, estadoInicial);
+				}
 			} else {
 				enviarErrorLogin(nombre, "No se pudo asignar jugador. Intenta nuevamente");
 				LOGGER.warn("Login no asignado para '{}'. Estado actual jugador1='{}', jugador2='{}'", nombre, jugador1, jugador2);
@@ -238,5 +254,18 @@ public class GameHandler {
 			e.printStackTrace();
 		}
 		return t;
+	}
+
+	/**
+	 * Construye el canal de STOMP asociado a una partida concreta.
+	 * Formato: /topic/{jugadorNaval}-{jugadorAereo}
+	 */
+	private String getCanalPartida(Partida p) {
+		if (p == null || p.getJugadorNaval() == null || p.getJugadorAereo() == null) {
+			return "/topic/game"; // fallback
+		}
+		String nav = p.getJugadorNaval().getNombre();
+		String aer = p.getJugadorAereo().getNombre();
+		return "/topic/" + nav + "-" + aer;
 	}
 }

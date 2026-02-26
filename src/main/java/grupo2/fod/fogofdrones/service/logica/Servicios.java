@@ -118,6 +118,7 @@ public class Servicios{
         Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
         if (persistencia != null) {
             Partida partida = persistencia.getPartida();
+            partida.actualizarTablero();
             String jugadorA = partida.getJugadorAereo().getNombre();
             String jugadorN = partida.getJugadorNaval().getNombre();
             String clave = generarClave(jugadorN, jugadorA);
