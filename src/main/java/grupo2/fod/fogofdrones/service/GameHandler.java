@@ -192,7 +192,7 @@ public class GameHandler {
 			LOGGER.error("Error enviando mensaje de error de login para '{}'", nombre, ex);
 		}
 	}
-		
+	
 	//Maneja el despliegue de drones en la fase inicial
 	 
 	public void handleDesplegar(Map<String, Object> data, Partida p) {
