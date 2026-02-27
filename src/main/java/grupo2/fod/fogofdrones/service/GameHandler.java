@@ -217,16 +217,18 @@ public class GameHandler {
 				VoMensaje mensajeJugador1 = VoMensaje.builder()
 					.nombre(jugador1)
 					.equipo(Equipo.NAVAL)
+					.canal(canalPartida)
 					.build();//new VoMensaje(jugador1, Equipo.NAVAL);
-				mensajeJugador1.setCanal(canalPartida);
+				//mensajeJugador1.setCanal(canalPartida);
 				String respuestaJugador1 = mapper.writeValueAsString(mensajeJugador1);
 				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador1);
 				
 				VoMensaje mensajeJugador2 = VoMensaje.builder()
 					.nombre(nombre)
 					.equipo(Equipo.AEREO)
+					.canal(canalPartida)
 					.build();//new VoMensaje(nombre, Equipo.AEREO);
-				mensajeJugador2.setCanal(canalPartida);
+				//mensajeJugador2.setCanal(canalPartida);
 				String respuestaJugador2 = mapper.writeValueAsString(mensajeJugador2);
 				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador2);
 				
