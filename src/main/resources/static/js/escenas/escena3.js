@@ -88,6 +88,7 @@ class escena3 extends Phaser.Scene {
     init(data){
         mensaje.nombre = data.nombre;
         gameState.equipo = data.equipo;
+        this.canalPartida = data.canal;
     }
     
                                                 // carga de assets
@@ -119,6 +120,14 @@ class escena3 extends Phaser.Scene {
 
     conectarSTOMP() {
         window.conexionWS.conectar(() => {
+            // suscribir al canal específico de la partida (y mantener /topic/game como respaldo)
+            if (this.canalPartida) {
+                window.conexionWS.suscribir(this.canalPartida, (message) => {
+                    this.procesarMensaje(message);
+                });
+            }
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // antiguo canal genérico queda vigente para compatibilidad
             window.conexionWS.suscribir('/topic/game', (message) => {
                 this.procesarMensaje(message);
             });
@@ -166,23 +175,10 @@ class escena3 extends Phaser.Scene {
 
             } break;
             case 2: {  // otra forma podria ser pasar el mensaje o el mensaje y un codigo par tido de error, error de mostrar o de hacer algo
-                if (mensaje.nombre === msg.nombre) { 
-                    switch (msg.codError) {
-                        case 1: {
-                            alert("Nombre inválido");
-                        } break;
-                        case 2: {
-                            alert("El jugador ya está en una partida activa");
-                        } break;
-                        case 3: {
-                            alert("No es tu turno");
-                        } break;
-                        case 4: {
-                            alert("No se pudo asignar jugador. Intenta nuevamente");
-                        } break;
-                        case 5: {
-                            alert("Error interno al crear jugador");
-                        } break;
+                if (mensaje.nombre === msg.nombre) { // alerta error al jugador afectado
+                    alert(msg.error);
+                }
+                        /*
                         case 6: {
                             this.solicitarGuardado();
                         } break;
@@ -194,11 +190,9 @@ class escena3 extends Phaser.Scene {
                             alert("Solicitud de guardado aceptada");
                             this.scene.stop('partida');
                             this.scene.start('menu');
-                        } break;
-                    }
-                }
-            } break;
-        }
+                        } break;*/
+            }break;
+        } 
     }
 
     crearAnimaciones() {
@@ -488,6 +482,9 @@ class escena3 extends Phaser.Scene {
 
     shutdown() {
         window.conexionWS.desuscribir('/topic/accion');
+        if (this.canalPartida) {
+            window.conexionWS.desuscribir(this.canalPartida);
+        }
     }
     
     update() {

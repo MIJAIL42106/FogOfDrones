@@ -43,13 +43,13 @@ public class GameHandler {
 			LOGGER.info("Login solicitado por '{}'", nombre);
 
 			if (nombre == null || nombre.trim().isEmpty()) {
-				enviarErrorLogin("", 1); // "Nombre inválido"
+				enviarErrorLogin("", "Nombre inválido"); // "Nombre inválido"
 				LOGGER.warn("Login rechazado: nombre vacío o nulo");
 				return;
 			}
 
 			if (servicios.existePartida(nombre)) {
-				enviarErrorLogin(nombre, 2); //"El jugador ya está en una partida activa"
+				enviarErrorLogin(nombre, "El jugador ya está en una partida activa"); //"El jugador ya está en una partida activa"
 				LOGGER.warn("Login rechazado para '{}': ya tiene partida activa", nombre);
 			} else {
 				handleCrearJugador(nombre);
@@ -110,13 +110,18 @@ public class GameHandler {
 						
 						// Enviar estado actualizado a todos los clientes
 						String respuesta = mensajeRetorno(p);
-						messagingTemplate.convertAndSend("/topic/game", respuesta);
+						String canal = getCanalPartida(p);
+						messagingTemplate.convertAndSend(canal, respuesta);
 						
 					} else {
 						// Enviar mensaje de error al jugador
-						VoMensaje mensajeError = new VoMensaje(nombre, 3); // "No es tu turno"
+						VoMensaje mensajeError = VoMensaje.builder()
+							.nombre(nombre)
+							.evento("No es tu turno")
+							.build();//new VoMensaje(nombre, 3); // "No es tu turno"
 						String respuesta = mapper.writeValueAsString(mensajeError);
-						messagingTemplate.convertAndSend("/topic/game", respuesta);
+						String canal = getCanalPartida(p);
+						messagingTemplate.convertAndSend(canal, respuesta);
 					}
 				break;	
 			}
@@ -185,7 +190,10 @@ public class GameHandler {
 				LOGGER.info("Jugador '{}' asignado como jugador1 (NAVAL)", nombre);
 				
 				// Notificar al jugador 1 que es NAVAL
-				VoMensaje mensaje = new VoMensaje(nombre, Equipo.NAVAL);
+				VoMensaje mensaje = VoMensaje.builder()
+					.nombre(nombre)
+					.equipo(Equipo.NAVAL)
+					.build();//new VoMensaje(nombre, Equipo.NAVAL);
 				String respuesta = mapper.writeValueAsString(mensaje);
 				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
@@ -197,16 +205,28 @@ public class GameHandler {
 				LOGGER.info("Partida creada con clave '{}'", clave);
 
 				// Notificar al jugador 2 que es AEREO
-				VoMensaje mensaje = new VoMensaje(nombre, Equipo.AEREO);
+				VoMensaje mensaje = VoMensaje.builder()
+					.nombre(nombre)
+					.equipo(Equipo.AEREO)
+					.build();//new VoMensaje(nombre, Equipo.AEREO);
 				String respuesta = mapper.writeValueAsString(mensaje);
 				messagingTemplate.convertAndSend("/topic/login", respuesta);
 				
 				// Notificar a ambos jugadores que la partida está lista
-				VoMensaje mensajeJugador1 = new VoMensaje(jugador1, Equipo.NAVAL);
+				String canalPartida = getCanalPartida(servicios.getPartidaJugador(jugador2));
+				VoMensaje mensajeJugador1 = VoMensaje.builder()
+					.nombre(jugador1)
+					.equipo(Equipo.NAVAL)
+					.build();//new VoMensaje(jugador1, Equipo.NAVAL);
+				mensajeJugador1.setCanal(canalPartida);
 				String respuestaJugador1 = mapper.writeValueAsString(mensajeJugador1);
 				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador1);
 				
-				VoMensaje mensajeJugador2 = new VoMensaje(nombre, Equipo.AEREO);
+				VoMensaje mensajeJugador2 = VoMensaje.builder()
+					.nombre(nombre)
+					.equipo(Equipo.AEREO)
+					.build();//new VoMensaje(nombre, Equipo.AEREO);
+				mensajeJugador2.setCanal(canalPartida);
 				String respuestaJugador2 = mapper.writeValueAsString(mensajeJugador2);
 				messagingTemplate.convertAndSend("/topic/partida-lista", respuestaJugador2);
 				
@@ -216,23 +236,37 @@ public class GameHandler {
 				jugador2 = null;
 				
 				// Enviar estado inicial del juego a todos los jugadores
-				// // // // // // // // estaria bueno recibir esto al conectarse a game no aca
+				// Registrar listener para mensajes de partida -> enviar por STOMP en canal específico
 				Partida p = servicios.getPartidaJugador(temp2);
-				String estadoInicial = mensajeRetorno(p);
-				messagingTemplate.convertAndSend("/topic/game", estadoInicial);
+				if (p != null) {
+					String canalInicio = getCanalPartida(p);
+					p.setMensajeListener((vo) -> {
+						try {
+							String mensajeVo = mapper.writeValueAsString(vo);
+							messagingTemplate.convertAndSend(canalInicio, mensajeVo);
+						} catch (Exception ex) {
+							LOGGER.error("Error enviando VoMensaje de partida", ex);
+						}
+					});
+					String estadoInicial = mensajeRetorno(p);
+					messagingTemplate.convertAndSend(canalInicio, estadoInicial);
+				}
 			} else {
-				enviarErrorLogin(nombre, 4); // "No se pudo asignar jugador. Intenta nuevamente"
+				enviarErrorLogin(nombre, "No se pudo asignar jugador. Intenta nuevamente"); // "No se pudo asignar jugador. Intenta nuevamente"
 				LOGGER.warn("Login no asignado para '{}'. Estado actual jugador1='{}', jugador2='{}'", nombre, jugador1, jugador2);
 			}
 		} catch (Exception e) {
 			LOGGER.error("Error al crear jugador '{}'", nombre, e);
-			enviarErrorLogin(nombre, 5); // "Error interno al crear jugador"
+			enviarErrorLogin(nombre, "Error interno al crear jugador"); // "Error interno al crear jugador"
 		}
 	}
 
-	private void enviarErrorLogin(String nombre, int error) {
+	private void enviarErrorLogin(String nombre, String error) {
 		try {
-			VoMensaje mensajeError = new VoMensaje(nombre, error);
+			VoMensaje mensajeError = VoMensaje.builder()
+				.nombre(nombre)
+				.evento(error)
+				.build();	///new VoMensaje(nombre, error);
 			String respuesta = mapper.writeValueAsString(mensajeError);
 			messagingTemplate.convertAndSend("/topic/login", respuesta);
 		} catch (Exception ex) {
@@ -300,7 +334,7 @@ public class GameHandler {
 			VoMensaje mensajeError = VoMensaje.builder()
 				.tipoMensaje(2)
 				.nombre(nombre)
-				.codError(6)
+				.evento("solicitud de guardado")
 				.build(); // "solicitud de guardado"
 			String respuesta = mapper.writeValueAsString(mensajeError);
 			messagingTemplate.convertAndSend("/topic/game", respuesta);
@@ -318,7 +352,10 @@ public class GameHandler {
 			solicitante = p.getJugadorAereo().getNombre();
 		}
 		try {
-			VoMensaje mensajeError = new VoMensaje(solicitante, 7); // "solicitud de guardado rechazada"
+			VoMensaje mensajeError = VoMensaje.builder()
+				.nombre(solicitante)
+				.evento("solicitud de guardado rechazada")
+				.build();//new VoMensaje(solicitante, 7); // "solicitud de guardado rechazada"
 			String respuesta = mapper.writeValueAsString(mensajeError);
 			messagingTemplate.convertAndSend("/topic/game", respuesta);
 		} catch (Exception e) {
@@ -337,7 +374,10 @@ public class GameHandler {
 		try {
 			servicios.guardarPartida(p.getJugadorNaval().getNombre(), p.getJugadorAereo().getNombre());
 
-			VoMensaje mensajeError = new VoMensaje(solicitante, 8); // "solicitud de guardado rechazada"
+			VoMensaje mensajeError = VoMensaje.builder()
+				.nombre(solicitante)
+				.evento("solicitud de guardado aceptada")
+				.build(); //new VoMensaje(solicitante, 8); // "solicitud de guardado rechazada"
 			String respuesta = mapper.writeValueAsString(mensajeError);
 			messagingTemplate.convertAndSend("/topic/game", respuesta);
 		} catch (Exception e) {
@@ -352,11 +392,28 @@ public class GameHandler {
 		String t = null;
 		try {
 			// Crear VoMensaje con la fase y la grilla completa
-			VoMensaje mensaje = new VoMensaje(p.getFasePartida(), p.getTablero());
+			VoMensaje mensaje = VoMensaje.builder()
+				.fasePartida(p.getFasePartida())
+				.grilla(p.getTablero().getGrillaLineal())
+				.build(); //new VoMensaje(p.getFasePartida(), p.getTablero());
 			t = mapper.writeValueAsString(mensaje);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return t;
+	}
+
+	
+	/**
+	 * Construye el canal de STOMP asociado a una partida concreta.
+	 * Formato: /topic/{jugadorNaval}-{jugadorAereo}
+	 */
+	private String getCanalPartida(Partida p) {
+		if (p == null || p.getJugadorNaval() == null || p.getJugadorAereo() == null) {
+			return "/topic/game"; // fallback
+		}
+		String nav = p.getJugadorNaval().getNombre();
+		String aer = p.getJugadorAereo().getNombre();
+		return "/topic/" + nav + "-" + aer;
 	}
 }

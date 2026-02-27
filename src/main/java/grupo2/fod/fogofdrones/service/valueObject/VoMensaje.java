@@ -3,7 +3,6 @@ package grupo2.fod.fogofdrones.service.valueObject;
 import grupo2.fod.fogofdrones.service.logica.Celda;
 import grupo2.fod.fogofdrones.service.logica.Equipo;
 import grupo2.fod.fogofdrones.service.logica.FasePartida;
-import grupo2.fod.fogofdrones.service.logica.Mapa;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,8 +18,11 @@ public class VoMensaje {
     private Celda[] grilla;
     private String nombre;
     private Equipo equipo;
-    private int codError;
+    private String evento;
+    private String canal;
     //cargar partida, interfaz grafica, animacion, codigo
+
+    /* 
     public VoMensaje() {
         this.tipoMensaje = 0;
         this.nombre = null;
@@ -55,6 +57,6 @@ public class VoMensaje {
         this.fasePartida = null;
         this.grilla = null;
         this.equipo = null;
-    }
+    }*/
 
 }

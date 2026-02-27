@@ -92,7 +92,9 @@ class escena1 extends Phaser.Scene {
                 const nombreRemoto = this.normalizarNombre(msg.nombre);
                 const mismoJugador = nombreLocal.length > 0 && nombreRemoto && nombreLocal === nombreRemoto;
                 if (mismoJugador && this.buscandoPartida) {
-                    this.iniciarPartida(mensajeLogin.nombre, msg.equipo);
+                    // guardar canal (servidor lo envía)
+                    this.canalPartida = msg.canal;
+                    this.iniciarPartida(mensajeLogin.nombre, msg.equipo, this.canalPartida);
                 }
             });
         }, (error) => {
@@ -113,7 +115,7 @@ class escena1 extends Phaser.Scene {
         return (value || '').toString().trim().toLowerCase();
     }
 
-    iniciarPartida(nombre, equipo) {
+    iniciarPartida(nombre, equipo, canal) {
         if (this.startedPartida) {
             return;
         }
@@ -121,6 +123,7 @@ class escena1 extends Phaser.Scene {
         this.startedPartida = true;
         this.awaitingLoginResponse = false;
         gameState.equipo = (equipo || '').toString();
+        this.canalPartida = canal;
 
         if (this.domElements) {
             this.domElements.forEach(element => {
@@ -131,7 +134,7 @@ class escena1 extends Phaser.Scene {
         }
 
         this.scene.stop('menu');
-        this.scene.start('partida', { nombre, equipo: gameState.equipo });
+        this.scene.start('partida', { nombre, equipo: gameState.equipo, canal: this.canalPartida });
     }
 
     // La conexión y suscripción ahora se maneja con ConexionWS en create()
@@ -171,6 +174,9 @@ class escena1 extends Phaser.Scene {
     shutdown() {
         window.conexionWS.desuscribir('/topic/login');
         window.conexionWS.desuscribir('/topic/partida-lista');
+        if (this.canalPartida) {
+            window.conexionWS.desuscribir(this.canalPartida);
+        }
         window.conexionWS.desconectar();
         
         if (this.domElements) {
