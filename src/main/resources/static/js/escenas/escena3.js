@@ -32,7 +32,7 @@ const mensaje = {
 };
 
 const tipoMensaje = Object.freeze({ // una forma de hacer tipo enumerado en js
-    LUNES: 0,
+    CARGAR: 0,
     ESTADOPARTIDA: 1,
     GUARDADO: 2,
     ERROR: 3,
@@ -120,9 +120,10 @@ class escena3 extends Phaser.Scene {
     }
 
     create() {
-        this.conectarSTOMP();
         this.crearInterfaz();
         this.crearAnimaciones();
+        this.pantallaImpactos.play('impactoPortaA');
+        this.conectarSTOMP();
         this.crearPortadrones();
         this.crearTablero();
     }
@@ -157,10 +158,12 @@ class escena3 extends Phaser.Scene {
                 // actualizado de fase de partida
                 if (gameState.fase !== msg.fasePartida.toString()) {
                     // si pasa a jugando se eliminan los elementos de despliegue iniciales
+                    // se podria mostrar mensaje o algo
                     if (msg.fasePartida.toString() === "JUGANDO") {
                         this.zonaDesp.destroy();
                         this.botonPasar(this.desplegarBtn);
                     } 
+                    // al pasar a muerte subita se podria hacer algo tambien
                     gameState.fase = msg.fasePartida.toString();
                 }
                 // limpiado de mascara y drones
@@ -211,10 +214,44 @@ class escena3 extends Phaser.Scene {
                 }
             }break;
             case tipoMensaje.NOTIFICACION: { 
-                if (mensaje.nombre === msg.nombre) { // notifica a jugador
-                    alert("noti:"+msg.evento);
+                //alert("noti:"+msg.evento);
+                //this.pantallaImpactos.play('impactoPortaA');
+                switch (msg.evento) {
+                    case "PORTADERRIBADOAEREO":{
+                        this.pantallaImpactos.play('impactoPortaA');
+                    
+                    }break;
+                    case "PORTAIMPACTADOAEREO":{
+                        this.pantallaImpactos.play('impactoPortaA');
+                    }break;
+                    case "PORTADERRIBADONAVAL":{
+                        this.pantallaImpactos.play('impactoPortaN');
+
+                    }break; 
+                    case "PORTAIMPACTADONAVAL":{
+                        this.pantallaImpactos.play('impactoPortaN');
+                    }break;
+                    case "DRONDERRIBADOAEREO":{
+                        this.pantallaImpactos.play('impactoDronA');
+                    }break;  
+                    case "DRONDERRIBADONAVAL":{
+                        this.pantallaImpactos.play('impactoDronN');
+                    }break;  
+                    case "TIROALAGUAAEREO":{
+                        this.pantallaImpactos.play('tiroAguaA');
+                    }break;
+                    case "TIROALAGUANAVAL":{
+                        this.pantallaImpactos.play('tiroAguaN');
+                    }break;
+                    default:{
+                        if (mensaje.nombre === msg.nombre) { // notifica a jugador
+
+                            alert("noti:"+msg.evento);
+                        }
+                    }break;
                 }
-            }break;
+                
+            }break;//*/
         } 
     }
 
@@ -233,6 +270,60 @@ class escena3 extends Phaser.Scene {
             repeat: -1,
         });
 
+        this.anims.create({
+            key: 'impactoPortaA',
+            frames: this.anims.generateFrameNumbers('Impactos', { start: 0, end: 10 }),
+            frameRate: 10,
+            delay: 200,
+            showOnStart: true,
+            hideOnComplete: true,
+        });
+        
+        this.anims.create({
+            key: 'impactoPortaN',
+            frames: this.anims.generateFrameNumbers('Impactos', { start: 11, end: 21 }),
+            frameRate: 10,
+            delay: 200,
+            showOnStart: true,
+            hideOnComplete: true,
+        });
+        
+        this.anims.create({
+            key: 'impactoDronA',
+            frames: this.anims.generateFrameNumbers('Impactos', { start: 22, end: 32 }),
+            frameRate: 10,
+            delay: 200,
+            showOnStart: true,
+            hideOnComplete: true,
+        });
+        
+        this.anims.create({
+            key: 'impactoDronN',
+            frames: this.anims.generateFrameNumbers('Impactos', { start: 33, end: 43 }),
+            frameRate: 10,
+            delay: 200,
+            showOnStart: true,
+            hideOnComplete: true,
+        });
+
+        this.anims.create({
+            key: 'tiroAguaA',
+            frames: this.anims.generateFrameNumbers('Impactos', { start: 44, end: 54 }),
+            frameRate: 10,
+            delay: 200,
+            showOnStart: true,
+            hideOnComplete: true,
+        });
+        
+        this.anims.create({
+            key: 'tiroAguaN',
+            frames: this.anims.generateFrameNumbers('Impactos', { start: 55, end: 65 }),
+            frameRate: 10,
+            delay: 200,
+            showOnStart: true,
+            hideOnComplete: true,
+        });
+        
         //animaciones pantalla secundaria
     }
     
@@ -299,8 +390,8 @@ class escena3 extends Phaser.Scene {
         fondo.setScale(1);                              // seteo de escala de fondo, hecho a medida, escala 1
         var escenario = this.add.image(38, 48,"Escenario").setOrigin(0, 0).setDepth(0);
         escenario.setScale(1);
-        // this.pantallaImpactos = this.add.sprite(xAbs , yAbs ,"").setScale(1.5).setDepth(2);
         
+
         this.zonaDesp;
         const anchoZona = 15 * gameState.tamCelda-gameState.tamCelda / 2; // ancho de zona despligue 15 casillas   // hacer metodo que se borran cuando pasa a jugando
         const altoZona = (gameState.alto-1) * gameState.tamCelda;   // -1 
@@ -324,6 +415,10 @@ class escena3 extends Phaser.Scene {
         pos += tamBtn + sep *1.5;
         var guardarBtn = this.add.image(pos,540,"Guardar").setDepth(0).setInteractive();
 
+        ///////////////////////////////////////////////////////////////// mover despues
+        this.pantallaImpactos = this.add.sprite(pos , 850 ,"Impactos").setScale(1).setDepth(2);
+        this.pantallaImpactos.setVisible(false);
+
         moverBtn.on('pointerover', function() {     // asigna interaccion al clikear 
             if ( ! gameState.solicitandoGuardado) {
                 moverBtn.setTint(gameState.colorSelec);
@@ -337,7 +432,7 @@ class escena3 extends Phaser.Scene {
             }           
         });
         moverBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            if(gameState.fase === "JUGANDO" && ! gameState.solicitandoGuardado) {
+            if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")  && ! gameState.solicitandoGuardado) {
                 this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 gameState.clicks = 0;
@@ -359,7 +454,7 @@ class escena3 extends Phaser.Scene {
             }           
         });
         atacarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            if(gameState.fase === "JUGANDO" && !gameState.solicitandoGuardado ) {
+            if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && !gameState.solicitandoGuardado ) {
                 this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 gameState.clicks = 0;
@@ -381,7 +476,7 @@ class escena3 extends Phaser.Scene {
             }           
         });
         recargarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            if(gameState.fase === "JUGANDO" && ! gameState.solicitandoGuardado) {
+            if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && ! gameState.solicitandoGuardado) {
                 this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 gameState.clicks = 0;
@@ -420,7 +515,7 @@ class escena3 extends Phaser.Scene {
             }           
         });
         guardarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            if(gameState.fase === "JUGANDO" && ! gameState.solicitandoGuardado) {
+            if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && ! gameState.solicitandoGuardado) {
                 gameState.clicks = 0;
                 mensaje.accion = "GUARDAR";               
                 this.enviarMensage(mensaje); 

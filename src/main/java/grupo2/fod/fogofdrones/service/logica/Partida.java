@@ -117,7 +117,7 @@ public class Partida implements Serializable {
             }
             actualizarVision();
             System.out.println("Dron desplegado exisotamente");
-            emitirMensaje("Dron desplegado exitosamente",4);
+            // emitirMensaje("Dron desplegado exitosamente",4);
         } else {
             System.out.println("Error: despliegue no valido");
             emitirMensaje("Error: despliegue no valido",3);
@@ -191,7 +191,7 @@ public class Partida implements Serializable {
 
             actualizarVision();
             System.out.println("Movimiento realizado correctamente");
-            emitirMensaje("Movimiento realizado correctamente",4);
+            // emitirMensaje("Movimiento realizado correctamente",4);
         } else {
             System.out.println("Error: movimiento no valido");
             emitirMensaje("Error: movimiento no valido",3);
@@ -271,42 +271,56 @@ public class Partida implements Serializable {
             System.out.println("Municion antes: " + dron.getMunicion());
             dron.consumirMunicion();//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             System.out.println("Municion despues: " + dron.getMunicion());
-            emitirMensaje("Municion consumida. Restante: " + dron.getMunicion(),4);
+            //emitirMensaje("Municion consumida. Restante: " + dron.getMunicion(),4);
 
+            String evento = null;
             if(celdaDestino.tieneDronEquipo(enemigo)) {
                 Dron dronEnemigo = celdaDestino.getDronEquipo(enemigo);
                 dronEnemigo.recibirDanio();
                 tablero.eliminarDron(dronEnemigo, enemigo);
                 if(enemigo == Equipo.NAVAL){
                     dronesNavales.removeIf(d ->d.getId() == dronEnemigo.getId()); //dronesNavales.remove(dronEnemigo.getId());
-                }else
+                    evento = "DRONDERRIBADONAVAL";
+                    //emitirMensaje("DRONDERRIBADONAVAL",4);
+                }else{
                     dronesAereos.removeIf(d ->d.getId() == dronEnemigo.getId());
+                    evento = "DRONDERRIBADOAEREO";
+                    //emitirMensaje("DRONDERRIBADOAEREO",4);
+                }
                 System.out.println("Drone enemigo derribado");
-                emitirMensaje("Drone enemigo derribado",4);
+                //emitirMensaje("Drone enemigo derribado",4);
             } else if(esZonaPortaDrones(destinoParam, enemigo)) {
                 PortaDrones aux = getPortaDronesEquipo(enemigo);
                 if(aux.estaMuerto()){
                     System.out.println("ERROR: El portadrones enemigo ya está derribado");
-                    emitirMensaje("ERROR: El portadrones enemigo ya está derribado",3);
+                    //emitirMensaje("ERROR: El portadrones enemigo ya está derribado",3);
+                    evento = "TIROALAGUA"+ turno.toString();
                 }else{
                     aux.recibirDanio();
                     System.out.println("PortaDrones enemigo impactado. Vida restante: " + aux.getVida());
-                    emitirMensaje("PortaDrones enemigo impactado. Vida restante: " + aux.getVida(),4);
+                    //emitirMensaje("PortaDrones enemigo impactado. Vida restante: " + aux.getVida(),4);
+                    evento = "PORTAIMPACTADO"+enemigo.toString();
+                    //emitirMensaje("PORTAIMPACTADO" + aux.getVida(),4);
                     if (aux.estaMuerto()){
                         activarMuerteSubita(enemigo);
                         System.out.println("PortaDrones enemigo derribado");
-                        emitirMensaje("PortaDrones enemigo derribado",4);
+                        //emitirMensaje("PortaDrones enemigo derribado",4);
+                        evento = "PORTADERRIBADO"+enemigo.toString();
+                        //emitirMensaje("PORTADERRIBADO",4);
                     }
                 }
             } else {
                 System.out.println("Disparo al agua: no acerto a ningun enemigo");
-                emitirMensaje("Disparo al agua: no acerto a ningun enemigo",4);
+                //emitirMensaje("Disparo al agua: no acerto a ningun enemigo",4);
+                evento = "TIROALAGUA"+ turno;
+                //emitirMensaje("Disparo al agua: no acerto a ningun enemigo",4);
             }
+            emitirMensaje(evento,4);
 
             disparo = true;
             actualizarVision();
             System.out.println("Ataque realizado exitosamente");
-            emitirMensaje("Ataque realizado exitosamente",4);
+            // emitirMensaje("Ataque realizado exitosamente",4);
 
             if (esFinPartida()) {
                 finalizarPartida();
@@ -379,7 +393,7 @@ public class Partida implements Serializable {
             if (fase == FasePartida.MUERTE_SUBITA){
                 turnosMuerteSubita--;
                 System.out.println("Turnos restantes: " + turnosMuerteSubita);
-                emitirMensaje("Turnos de muerte subita restantes: " + turnosMuerteSubita,4);
+                //emitirMensaje("Turnos de muerte subita restantes: " + turnosMuerteSubita,4);
             }
 
             if(turnosMuerteSubita <= 0)
@@ -435,7 +449,7 @@ public class Partida implements Serializable {
             emitirMensaje("Recarga exitosa",4);
             terminarTurno();
         } else {
-            System.out.println("Error: regarga no vilida");
+            System.out.println("Error: recarga no vilida");
             emitirMensaje("Error: recarga no valida",3);
         }
     }

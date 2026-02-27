@@ -20,6 +20,7 @@ public class VoMensaje {
     private Equipo equipo;
     private String evento;
     private String canal;
+    private int turnosMuerteSubita;
     //cargar partida, interfaz grafica, animacion, codigo
 
     /* 
