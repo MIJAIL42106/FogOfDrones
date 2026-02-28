@@ -86,6 +86,12 @@ public class GameHandler {
 					System.out.println("case ACEPTAR");
 					handleAceptar(nombre, p);
 					break;
+				case "ACT":
+					System.out.println("case ACT");
+					String respuesta1 = mensajeRetorno(p);
+					String canal1 = getCanalPartida(p);
+					messagingTemplate.convertAndSend(canal1, respuesta1);
+					break;
 				default: 
 					if (p.esMiTurno(nombre)) {
 						// Si es el turno del jugador, procesar la acción
@@ -112,7 +118,20 @@ public class GameHandler {
 						String respuesta = mensajeRetorno(p);
 						String canal = getCanalPartida(p);
 						messagingTemplate.convertAndSend(canal, respuesta);
-						
+						if (p.getFasePartida() == FasePartida.TERMINADO) {
+							String nombreNaval = p.getJugadorNaval().getNombre();
+                            String nombreAereo = p.getJugadorAereo().getNombre();
+                            servicios.finalizarPartida(nombreNaval, nombreAereo);
+                            Equipo ganador = p.getEquipoGanador();
+                            VoMensaje finMsg = VoMensaje.builder()
+                                .tipoMensaje(5) // Nuevo tipo para finalización
+                                .evento("La partida ha terminado")
+                                .nombre(ganador != null ? ganador.toString() : "Empate")
+                                .fasePartida(FasePartida.TERMINADO)
+                                .build();
+                            String finRespuesta = mapper.writeValueAsString(finMsg);
+                            messagingTemplate.convertAndSend(canal, finRespuesta);
+                        }
 					} else {
 						// Enviar mensaje de error al jugador
 						VoMensaje mensajeError = VoMensaje.builder()

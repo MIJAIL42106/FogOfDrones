@@ -24,7 +24,7 @@ gameState = {
 
 const mensaje = {
     nombre: "",
-    accion: "",
+    accion: "ACT",
     xi: 30,
     yi: 15,
     xf: 30,
@@ -37,6 +37,7 @@ const tipoMensaje = Object.freeze({ // una forma de hacer tipo enumerado en js
     GUARDADO: 2,
     ERROR: 3,
     NOTIFICACION: 4,
+    FINALIZACION: 5,
 });
 
 // podria eliminarse clase celda completamente y usar un metodo?
@@ -122,7 +123,7 @@ class escena3 extends Phaser.Scene {
     create() {
         this.crearInterfaz();
         this.crearAnimaciones();
-        this.pantallaImpactos.play('impactoPortaA');
+        //this.pantallaImpactos.play('impactoPortaA');
         this.conectarSTOMP();
         this.crearPortadrones();
         this.crearTablero();
@@ -145,6 +146,7 @@ class escena3 extends Phaser.Scene {
         }, (error) => {
             // Manejo de error de conexión
         });
+        this.enviarMensage(mensaje);
     }
 
     procesarMensaje(msg) {
@@ -252,6 +254,19 @@ class escena3 extends Phaser.Scene {
                 }
                 
             }break;//*/
+            case tipoMensaje.FINALIZACION: { // FINALIZACION
+                // Mostrar cartel de finalización y ganador
+                let ganador = msg.nombre;
+                let mensajeFin = msg.evento + "\nGanador: " + ganador;
+                alert(mensajeFin);
+                // Al aceptar, salir de la partida y volver al menú
+                this.scene.stop('partida');
+                this.scene.start('menu');
+                // Desconectar websocket si es necesario
+                if (window.conexionWS) {
+                    window.conexionWS.desconectar();
+                }
+            } break;
         } 
     }
 
@@ -499,6 +514,7 @@ class escena3 extends Phaser.Scene {
             this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
             //this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(1, gameState.bordes);
             gameState.clicks = 0;
+            mensaje.accion = "DESPLEGAR"; 
             this.enviarMensage(mensaje);              
         });
     
@@ -599,10 +615,47 @@ class escena3 extends Phaser.Scene {
     }
 
     shutdown() {
+        this.anims.remove('idleN');
+        this.anims.remove('idleA');
+        this.anims.remove('impactoPortaA');
+        this.anims.remove('impactoPortaN');
+        this.anims.remove('impactoDronA');
+        this.anims.remove('impactoDronN');
+        this.anims.remove('tiroAguaA');
+        this.anims.remove('tiroAguaN');
+        gameState.colorVerde = 0xaaffaa ;                       //
+        gameState.colorRojo = 0xffaaaa ;                        //
+        gameState.colorSelec = 0x7cff89 ;                        //
+        gameState.niebla = 0x334455 ;
+        gameState.bordes = 0xffffff ;
+        gameState.ancho = 64 ;                                  // cantidad de celdas horizontales
+        gameState.alto = 36 ;                                    // cantidad de celdas verticales
+        gameState.tableroX = 50 ; 
+        gameState.tableroY = 60 ;
+        gameState.miTurno = false ;                   // no se usa
+        gameState.clicks = 0 ;
+        gameState.fase = "" ;
+        gameState.equipo = "" ;
+        gameState.drones = [] ;
+        gameState.portaNX = 0 ;
+        gameState.portaNY = 35 ;
+        gameState.portaAX = 63 ;
+        gameState.portaAY = 0 ;
+        gameState.escala = 22.36 ;
+        gameState.tamCelda = 23 ;
+        gameState.solicitandoGuardado = false ;
+        mensaje.nombre = "" ;
+        mensaje.accion = "ACT" ;
+        mensaje.xi = 30 ;
+        mensaje.yi = 15 ;
+        mensaje.xf = 30 ;
+        mensaje.yf = 15 ;
+        //this.scene.remove('partida');
         window.conexionWS.desuscribir('/topic/accion');
         if (this.canalPartida) {
             window.conexionWS.desuscribir(this.canalPartida);
         }
+        this.scene.stop('partida');
     }
     
     update() {
