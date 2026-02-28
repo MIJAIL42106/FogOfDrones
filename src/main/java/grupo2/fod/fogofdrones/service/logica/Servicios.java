@@ -114,7 +114,7 @@ public class Servicios{
             eliminarPartida(nombre1, nombre2);
         }
     }
-
+    /* 
     public void cargarPartida(String nombre1) {
         Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
         if (persistencia != null) {
@@ -128,7 +128,32 @@ public class Servicios{
         } else {
             System.out.println("Error: no se encontró una partida con ese nombre");
         }
+    }
+    */
 
+    // Verifica si existe una partida guardada para el jugador
+    public boolean existePartidaGuardada(String nombreJugador) {
+        return repoPartidas.findByJugador(nombreJugador).isPresent();
     }
 
+    // Carga la partida guardada entre dos jugadores y la pone en memoria
+    public Partida cargarPartida(String nombre1, String nombre2) {
+        Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
+        if (persistencia == null) {
+            persistencia = repoPartidas.findByJugador(nombre2).orElse(null);
+        }
+        if (persistencia != null) {
+            Partida partida = persistencia.getPartida();
+            partida.actualizarTablero();
+            String jugadorA = partida.getJugadorAereo().getNombre();
+            String jugadorN = partida.getJugadorNaval().getNombre();
+            String clave = generarClave(jugadorN, jugadorA);
+            partidas.put(clave, partida);
+            repoPartidas.delete(persistencia);
+            return partida;
+        } else {
+            System.out.println("Error: no se encontró una partida con esos jugadores");
+            return null;
+        }
+    }
 }

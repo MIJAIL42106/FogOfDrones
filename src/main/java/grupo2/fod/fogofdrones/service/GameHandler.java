@@ -74,18 +74,24 @@ public class GameHandler {
 			System.out.println("accion: "+ accion);
 
 			switch (accion) {
-				case "GUARDAR":
+				case "GUARDAR": {
 					System.out.println("case GUARDAR");
 					handleGuardar(nombre, p);
-					break;
-				case "RECHAZAR":
+					} break;
+				case "RECHAZAR": {
 					System.out.println("case RECHAZAR");
 					handleRechazar(nombre, p);
-					break;
-				case "ACEPTAR":
+				 	} break;
+				case "ACEPTAR":{
 					System.out.println("case ACEPTAR");
 					handleAceptar(nombre, p);
-					break;
+					} break;
+				case "ACTUALIZAR": {
+					System.out.println("case ACTUALIZAR");
+					String respuesta = mensajeRetorno(p);
+					String canal = getCanalPartida(p);
+					messagingTemplate.convertAndSend(canal, respuesta);
+					} break;
 				default: 
 					if (p.esMiTurno(nombre)) {
 						// Si es el turno del jugador, procesar la acción
@@ -424,5 +430,85 @@ public class GameHandler {
 		String nav = p.getJugadorNaval().getNombre();
 		String aer = p.getJugadorAereo().getNombre();
 		return "/topic/" + nav + "-" + aer;
+	}
+
+	
+	// Estado para carga de partida
+	private String jugadorCarga1 = null;
+	private String jugadorCarga2 = null;
+
+	@MessageMapping("/cargar")
+	public void handleCargar(@Payload Map<String, Object> data) {
+		try {
+			String nombre = (String) data.get("nombre");
+			LOGGER.info("Cargar solicitado por '{}'", nombre);
+
+			// Verifica si el jugador tiene partida guardada
+			if (!servicios.existePartidaGuardada(nombre)) {
+				// Enviar mensaje de error especial para carga
+				try {
+					VoMensaje mensajeError = VoMensaje.builder()
+						.tipoMensaje(2)
+						.nombre(nombre)
+						.evento("No tienes partida guardada")
+						.build();
+					String respuesta = mapper.writeValueAsString(mensajeError);
+					messagingTemplate.convertAndSend("/topic/login", respuesta);
+				} catch (Exception ex) {
+					LOGGER.error("Error enviando mensaje de error de carga para '{}': {}", nombre, ex.getMessage());
+				}
+				return;
+			}
+
+			if (jugadorCarga1 == null) {
+				jugadorCarga1 = nombre;
+				LOGGER.info("Jugador '{}' esperando para cargar partida", nombre);
+				// Espera al segundo jugador
+			} else if (jugadorCarga2 == null && !jugadorCarga1.equals(nombre)) {
+				jugadorCarga2 = nombre;
+				LOGGER.info("Jugador '{}' también listo para cargar partida", nombre);
+
+				// Recupera la partida guardada
+				Partida partidaCargada = servicios.cargarPartida(jugadorCarga1, jugadorCarga2);
+				String canalPartida = getCanalPartida(partidaCargada);
+
+
+
+				// Notifica a ambos jugadores que la partida está lista para cargar
+				VoMensaje mensajeJugador1 = VoMensaje.builder()
+					.nombre(jugadorCarga1)
+					.equipo(Equipo.NAVAL)
+					.canal(canalPartida)
+					.build();
+				String respuestaJugador1 = mapper.writeValueAsString(mensajeJugador1);
+				messagingTemplate.convertAndSend("/topic/cargar-lista", respuestaJugador1);
+
+				VoMensaje mensajeJugador2 = VoMensaje.builder()
+					.nombre(jugadorCarga2)
+					.equipo(Equipo.AEREO)
+					.canal(canalPartida)
+					.build();
+				String respuestaJugador2 = mapper.writeValueAsString(mensajeJugador2);
+				messagingTemplate.convertAndSend("/topic/cargar-lista", respuestaJugador2);
+
+				// Limpia estado de espera
+				jugadorCarga1 = null;
+				jugadorCarga2 = null;
+////////////////////////////////////////////////////////////////////////////////////////
+				System.out.println(partidaCargada.getJugadorNaval().getNombre() + " - " + partidaCargada.getJugadorAereo().getNombre());
+
+				// Enviar estado actual de la partida cargada
+				if (partidaCargada != null) {
+					String estadoInicial = mensajeRetorno(partidaCargada);
+					messagingTemplate.convertAndSend(canalPartida, estadoInicial);
+				}
+			} else {
+				enviarErrorLogin(nombre, "No se pudo cargar la partida. Intenta nuevamente.");
+				LOGGER.warn("Carga no asignada para '{}'. Estado actual jugadorCarga1='{}', jugadorCarga2='{}'", nombre, jugadorCarga1, jugadorCarga2);
+			}
+		} catch (Exception e) {
+			LOGGER.error("Error al cargar partida '{}'", data.get("nombre"), e);
+			enviarErrorLogin((String) data.get("nombre"), "Error interno al cargar partida");
+		}
 	}
 }

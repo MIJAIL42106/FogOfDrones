@@ -42,6 +42,14 @@ class escena1 extends Phaser.Scene {
         }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
+        this.cargarBtn = this.add.text(width / 2, height - 110, 'Cargar', {
+            fontSize: '40px',
+            color: '#ffffff',
+            backgroundColor: '#4b7ae5',
+            padding: { x: 20, y: 10 }
+        }).setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+
         this.estadoTexto = this.add.text(width / 2, height - 120, '', {
             fontSize: '24px',
             color: '#ffffff'
@@ -67,6 +75,24 @@ class escena1 extends Phaser.Scene {
             this.awaitingLoginResponse = true;
             window.conexionWS.enviar('/app/login', { nombre: mensajeLogin.nombre });
         });
+
+        this.cargarBtn.on('pointerdown', () => {
+            if (this.cargandoPartida) {
+                this.cancelarCarga();
+                return;
+            }
+            mensajeLogin.nombre = this.nombreInput.value.trim();
+            if (!mensajeLogin.nombre) {
+                alert('falta nombre');
+                return;
+            }
+            this.cargandoPartida = true;
+            this.nombreInput.disabled = true;
+            this.cargarBtn.setText('Cancelar');
+            this.cargarBtn.setBackgroundColor('#ff6b6b');
+            this.estadoTexto.setText('Esperando al rival...');
+            window.conexionWS.enviar('/app/cargar', { nombre: mensajeLogin.nombre });
+        });
     }
 
     // Centraliza la conexión y suscripción a los tópicos usando ConexionWS
@@ -76,7 +102,14 @@ class escena1 extends Phaser.Scene {
                 const nombreLocal = this.normalizarNombre(mensajeLogin.nombre);
                 const nombreRemoto = this.normalizarNombre(msg.nombre);
                 const mismoJugador = nombreLocal.length > 0 && nombreLocal === nombreRemoto;
+                // Manejo de error de login y de carga
                 if (msg && msg.tipoMensaje === 2 && mismoJugador) {
+                    // Si el error es por cargar partida guardada
+                    if (msg.evento && msg.evento.includes('No tienes partida guardada')) {
+                        alert('No tienes partida guardada');
+                        this.cancelarCarga();
+                        return;
+                    }
                     this.awaitingLoginResponse = false;
                     this.buscandoPartida = false;
                     this.nombreInput.disabled = false;
@@ -97,6 +130,16 @@ class escena1 extends Phaser.Scene {
                     this.iniciarPartida(mensajeLogin.nombre, msg.equipo, this.canalPartida);
                 }
             });
+            // Suscripción para cargar partida
+            window.conexionWS.suscribir('/topic/cargar-lista', (msg) => {
+                const nombreLocal = this.normalizarNombre(mensajeLogin.nombre);
+                const nombreRemoto = this.normalizarNombre(msg.nombre);
+                const mismoJugador = nombreLocal.length > 0 && nombreRemoto && nombreLocal === nombreRemoto;
+                if (mismoJugador && this.cargandoPartida) {
+                    this.canalPartida = msg.canal;
+                    this.iniciarPartida(mensajeLogin.nombre, msg.equipo, this.canalPartida);
+                }
+            });
         }, (error) => {
             this.estadoTexto.setText('Error de conexión');
         });
@@ -111,6 +154,14 @@ class escena1 extends Phaser.Scene {
         this.estadoTexto.setText('');
     }
 
+    cancelarCarga() {
+        this.cargandoPartida = false;
+        this.nombreInput.disabled = false;
+        this.cargarBtn.setText('Cargar');
+        this.cargarBtn.setBackgroundColor('#4b7ae5');
+        this.estadoTexto.setText('');
+    }
+    
     normalizarNombre(value) {
         return (value || '').toString().trim().toLowerCase();
     }

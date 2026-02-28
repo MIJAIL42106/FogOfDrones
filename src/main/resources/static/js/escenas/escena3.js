@@ -32,7 +32,7 @@ const mensaje = {
 };
 
 const tipoMensaje = Object.freeze({ // una forma de hacer tipo enumerado en js
-    CARGAR: 0,
+    CARGAR: 0,  // no se usa 
     ESTADOPARTIDA: 1,
     GUARDADO: 2,
     ERROR: 3,
@@ -120,9 +120,10 @@ class escena3 extends Phaser.Scene {
     }
 
     create() {
+        alert(gameState.equipo + " - " + mensaje.nombre);
         this.crearInterfaz();
         this.crearAnimaciones();
-        this.pantallaImpactos.play('impactoPortaA');
+        //this.pantallaImpactos.play('impactoPortaA');
         this.conectarSTOMP();
         this.crearPortadrones();
         this.crearTablero();
@@ -141,7 +142,7 @@ class escena3 extends Phaser.Scene {
             window.conexionWS.suscribir('/topic/game', (message) => {
                 this.procesarMensaje(message);
             });
-            //this.enviarMensage(mensaje);
+            
         }, (error) => {
             // Manejo de error de conexión
         });
@@ -149,7 +150,7 @@ class escena3 extends Phaser.Scene {
 
     procesarMensaje(msg) {
         switch (msg.tipoMensaje) {
-            case tipoMensaje.LUNES: {   // evaluar si todavia lo necesitamos, equipo viene del menu, probablemente hay que cambiar gamehandler
+            case tipoMensaje.CARGAR: {   // evaluar si todavia lo necesitamos, equipo viene del menu, probablemente hay que cambiar gamehandler
                 if (mensaje.nombre === msg.nombre) {
                     gameState.equipo = msg.equipo.toString();
                 }
@@ -165,6 +166,7 @@ class escena3 extends Phaser.Scene {
                     } 
                     // al pasar a muerte subita se podria hacer algo tambien
                     gameState.fase = msg.fasePartida.toString();
+                    alert(msg.fasePartida.toString());
                 }
                 // limpiado de mascara y drones
                 this.forma.clear(); 
@@ -391,6 +393,8 @@ class escena3 extends Phaser.Scene {
         var escenario = this.add.image(38, 48,"Escenario").setOrigin(0, 0).setDepth(0);
         escenario.setScale(1);
         
+        //mensaje.accion = "ACTUALIZAR"; 
+        //this.enviarMensage(mensaje);
 
         this.zonaDesp;
         const anchoZona = 15 * gameState.tamCelda-gameState.tamCelda / 2; // ancho de zona despligue 15 casillas   // hacer metodo que se borran cuando pasa a jugando
@@ -414,6 +418,14 @@ class escena3 extends Phaser.Scene {
         this.desplegarBtn = this.add.image(pos,960,"Desplegar").setDepth(0).setInteractive();
         pos += tamBtn + sep *1.5;
         var guardarBtn = this.add.image(pos,540,"Guardar").setDepth(0).setInteractive();
+
+        var actualizarBtn = this.add.image(960,540,"Guardar").setDepth(2).setInteractive();
+
+        actualizarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
+            gameState.clicks = 0;
+            mensaje.accion = "MOVER";               
+            this.enviarMensage(mensaje);  
+        });
 
         ///////////////////////////////////////////////////////////////// mover despues
         this.pantallaImpactos = this.add.sprite(pos , 850 ,"Impactos").setScale(1).setDepth(2);
