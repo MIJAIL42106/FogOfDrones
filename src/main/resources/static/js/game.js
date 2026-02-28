@@ -18,7 +18,6 @@ var config = {
 
     scene:[     // 
         escena1,
-        escena2,
         escena3,
     ]  
 }

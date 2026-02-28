@@ -271,7 +271,7 @@ public class GameHandler {
 				// Enviar estado inicial del juego a todos los jugadores
 				// Registrar listener para mensajes de partida -> enviar por STOMP en canal específico
 				Partida p = servicios.getPartidaJugador(temp2);
-				if (p != null) {
+				if (p != null) {/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 					String canalInicio = getCanalPartida(p);
 					p.setMensajeListener((vo) -> {
 						try {
@@ -549,6 +549,20 @@ public class GameHandler {
 				LOGGER.info("Partida cargada: {} vs {}. Esperando ACTUALIZAR de los clientes.", 
 					partidaCargada.getJugadorNaval().getNombre(), 
 					partidaCargada.getJugadorAereo().getNombre());
+					
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+				String canalInicio = getCanalPartida(partidaCargada);
+				partidaCargada.setMensajeListener((vo) -> {
+					try {
+						String mensajeVo = mapper.writeValueAsString(vo);
+						messagingTemplate.convertAndSend(canalInicio, mensajeVo);
+					} catch (Exception ex) {
+						LOGGER.error("Error enviando VoMensaje de partida", ex);
+					}
+				});
+				String estadoInicial = mensajeRetorno(partidaCargada);
+				messagingTemplate.convertAndSend(canalInicio, estadoInicial);
 			} else {
 				enviarErrorLogin(nombre, "No se pudo cargar la partida. Intenta nuevamente.");
 				LOGGER.warn("Carga no asignada para '{}'. Estado actual jugadorCarga1='{}', jugadorCarga2='{}'", nombre, jugadorCarga1, jugadorCarga2);

@@ -25,7 +25,7 @@ gameState = {
 
 const mensaje = {
     nombre: "",
-    accion: "ACT",
+    accion: "",
     xi: 30,
     yi: 15,
     xf: 30,
@@ -153,7 +153,7 @@ class escena3 extends Phaser.Scene {
         }, (error) => {
             // Manejo de error de conexión
         });
-        this.enviarMensage(mensaje);
+        //this.enviarMensage(mensaje); ///////////////ultimo comentado aca
     }
 
     procesarMensaje(msg) {
@@ -279,12 +279,14 @@ class escena3 extends Phaser.Scene {
                 let mensajeFin = msg.evento + "\nGanador: " + ganador;
                 alert(mensajeFin);
                 // Al aceptar, salir de la partida y volver al menú
-                this.scene.stop('partida');
+                //this.scene.stop('partida');
+                this.shutdown();
                 this.scene.start('menu');
                 // Desconectar websocket si es necesario
+                /*
                 if (window.conexionWS) {
                     window.conexionWS.desconectar();
-                }
+                }*/
             } break;
         } 
     }

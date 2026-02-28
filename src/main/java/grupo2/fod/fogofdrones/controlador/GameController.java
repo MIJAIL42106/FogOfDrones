@@ -8,13 +8,14 @@ public class GameController {
 	
 	@GetMapping("/")
 	public String showChatPage() {
-		return "pagina.html";
-	}
-	
-	@GetMapping("/test-game")
-	public String index() {
 		return "index.html";
 	}
+	
+
+	//@GetMapping("/test-game")
+	//public String index() {
+	//	return "index.html";
+	//}
 	
 
 	// @GetMapping("/lobby")
