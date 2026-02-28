@@ -51,7 +51,7 @@ public class pruebaJPA {
         
 
         */
-        service.cargarPartida(nombreJug1);
+        service.cargarPartida(nombreJug1, nombreJug2);
         Partida p = service.getPartida(nombreJug1, nombreJug2);
 
         pos = new Posicion(5, 25);

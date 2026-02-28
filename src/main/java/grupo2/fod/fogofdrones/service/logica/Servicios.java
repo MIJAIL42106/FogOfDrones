@@ -116,12 +116,20 @@ public class Servicios{
         String clave = generarClave(nombre1, nombre2);
         Partida partida = partidas.get(clave);
         if (partida != null) {
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            System.out.println("[GUARDAR] Guardando partida: " + clave);
+            System.out.println("[GUARDAR] Fase actual: " + (partida.getFasePartida() != null ? partida.getFasePartida() : "NULL"));
+            
             Persistencia persistencia = new Persistencia(partida, nombre2, nombre1);
             repoPartidas.save(persistencia);
+            
+            System.out.println("[GUARDAR] Partida guardada exitosamente");
             eliminarPartida(nombre1, nombre2);
+        } else {
+            System.out.println("[GUARDAR] ERROR: No se encontró la partida " + clave);
         }
     }
-
+    /* 
     public void cargarPartida(String nombre1) {
         Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
         if (persistencia != null) {
@@ -135,7 +143,50 @@ public class Servicios{
         } else {
             System.out.println("Error: no se encontró una partida con ese nombre");
         }
+    }
+    */
 
+    // Verifica si existe una partida guardada para el jugador
+    public boolean existePartidaGuardada(String nombreJugador) {
+        return repoPartidas.findByJugador(nombreJugador).isPresent();
     }
 
+    // Carga la partida guardada entre dos jugadores y la pone en memoria
+    public Partida cargarPartida(String nombre1, String nombre2) {
+        Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
+        if (persistencia == null) {
+            persistencia = repoPartidas.findByJugador(nombre2).orElse(null);
+        }
+        if (persistencia != null) {
+            Partida partida = persistencia.getPartida();
+            
+            // DEBUG: Verificar qué se cargó
+            System.out.println("[CARGAR] Partida cargada: " + partida);
+            System.out.println("[CARGAR] Fase cargada: " + (partida.getFasePartida() != null ? partida.getFasePartida() : "NULL"));
+            
+            // VALIDACIÓN: Si la fase es null, establecer a DESPLIEGUE (valor por defecto)
+            if (partida.getFasePartida() == null) {
+                System.out.println("[CARGAR] ADVERTENCIA: Fase es null. Estableciendo a DESPLIEGUE por defecto");
+                partida.setFasePartida(FasePartida.DESPLIEGUE);
+            }
+            
+            
+            String jugadorA = partida.getJugadorAereo().getNombre();
+            String jugadorN = partida.getJugadorNaval().getNombre();
+            String clave = generarClave(jugadorN, jugadorA);
+            partidas.put(clave, partida);
+            repoPartidas.delete(persistencia);
+            
+            getPartidaPorClave(clave).actualizarTablero();
+            getPartidaPorClave(clave).actualizarVision();
+            getPartida(jugadorN, jugadorA).actualizarTablero();
+            getPartida(jugadorN, jugadorA).actualizarVision();
+
+            System.out.println("[CARGAR] Partida restaurada en memoria: " + clave);
+            return partida;
+        } else {
+            System.out.println("Error: no se encontró una partida con esos jugadores");
+            return null;
+        }
+    }
 }
