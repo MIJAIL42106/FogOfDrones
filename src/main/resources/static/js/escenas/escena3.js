@@ -18,6 +18,8 @@ gameState = {
     portaNY: 35,
     portaAX: 63,
     portaAY: 0,
+    anchoPorta: 4,
+    altoPorta: 6,
     escala: 22.36,
     tamCelda: 23,
     solicitandoGuardado: false
@@ -44,7 +46,7 @@ const tipoMensaje = Object.freeze({ // una forma de hacer tipo enumerado en js
 // podria eliminarse clase celda completamente y usar un metodo?
 class Celda {                                   // calse celda para grilla
     constructor (grid, y, x) {                  // grid = escena donde se crean, indices para posiciones x e y
-        gameState.escala = 22.36;                       // escala de posiciones
+        gameState.escala = 22.36;                       // escala de posiciones ////////////////////////////////////////// borrar
                                                 // añade rectangulo en posicion correspondiente a indices
         this.tile = grid.add.rectangle(x*gameState.escala, y*gameState.escala, gameState.tamCelda, gameState.tamCelda, gameState.niebla).setStrokeStyle(0.0, gameState.bordes).setDepth(1);
         this.tile.setAlpha(0.3);                // ajuste de opacidad para celdas de grilla
@@ -114,8 +116,8 @@ class escena3 extends Phaser.Scene {
         this.load.image("Desplegar",".//assets/fondos/desplegar.png");
         this.load.image("Aceptar",".//assets/fondos/Aceptar.png");
         this.load.image("Rechazar",".//assets/fondos/Rechazar.png");
-        this.load.image("PortaN",".//assets/sprites/PortaVerde-64x64x1.png");
-        this.load.image("PortaA",".//assets/sprites/PortaRojo-64x64x1.png");
+        this.load.image("PortaN",".//assets/sprites/PortaVerde-42x64x1.png");
+        this.load.image("PortaA",".//assets/sprites/PortaRojo-42x64x1.png");
         this.load.spritesheet("DronN",".//assets/sprites/DronVerde-64x64x2.png",{frameWidth: 64, frameHeight: 64});
         this.load.spritesheet("DronA",".//assets/sprites/DronRojo-64x64x2.png",{frameWidth: 64, frameHeight: 64});
         this.load.spritesheet("Impactos",".//assets/sprites/Impactos-399x399x11x6.png",{frameWidth: 399, frameHeight: 399});
@@ -188,6 +190,8 @@ class escena3 extends Phaser.Scene {
                 this.forma.fillStyle(0xff0000, 0);
                 this.eliminarDrones();
                 // actualizado de tablero celda a celda, junto a drones y mascara
+                /*  portaNX: 0,     portaNY: 35,    
+                    portaAX: 63,    portaAY: 0,*/
                 var i = 0;
                 msg.grilla.forEach((cel) => {
                     let celda = this.tablero.getAt(i);
@@ -197,7 +201,7 @@ class escena3 extends Phaser.Scene {
                             this.dibujarDronNaval(celda.x, celda.y);
                         if (cel.aereo)
                             this.dibujarDronAereo(celda.x, celda.y);
-                        if( (celda.x <= 1*gameState.tamCelda && celda.y >= 32*gameState.tamCelda) || (celda.x >= 60*gameState.tamCelda && celda.y <= 2*gameState.tamCelda) )  {
+                        if( (celda.x <= (gameState.portaNX+gameState.anchoPorta-1)*gameState.tamCelda && celda.y >= (gameState.portaNY-gameState.altoPorta)*gameState.tamCelda) || (celda.x >= (gameState.portaAX-gameState.anchoPorta-1)*gameState.tamCelda && celda.y <= (gameState.portaAY+gameState.altoPorta-1)*gameState.tamCelda) )  {
                                 this.forma.fillRect(celda.x + gameState.tableroX -gameState.tamCelda / 2, celda.y + gameState.tableroY -gameState.tamCelda / 2, gameState.tamCelda, gameState.tamCelda);
                         }  
                     } else {
@@ -235,19 +239,17 @@ class escena3 extends Phaser.Scene {
             }break;
             case tipoMensaje.NOTIFICACION: { 
                 console.log("NOTIFICACION - evento:", msg.evento, "destino:", msg.nombre);
-                //alert("noti:"+msg.evento);
-                //this.pantallaImpactos.play('impactoPortaA');
                 switch (msg.evento) {
                     case "PORTADERRIBADOAEREO":{
                         this.pantallaImpactos.play('impactoPortaA');
-                    
+                        this.portadronA.destroy();
                     }break;
                     case "PORTAIMPACTADOAEREO":{
                         this.pantallaImpactos.play('impactoPortaA');
                     }break;
                     case "PORTADERRIBADONAVAL":{
                         this.pantallaImpactos.play('impactoPortaN');
-
+                        this.portadronN.destroy();
                     }break; 
                     case "PORTAIMPACTADONAVAL":{
                         this.pantallaImpactos.play('impactoPortaN');
@@ -364,19 +366,23 @@ class escena3 extends Phaser.Scene {
     }
     
     crearPortadrones() {
-        const portadronN = this.add.image(gameState.portaNX*gameState.escala + gameState.tableroX + gameState.tamCelda / 2, gameState.portaNY*gameState.escala + gameState.tableroY-27,"PortaN").setDepth(2).setOrigin(0.5, 0.5);
-        portadronN.setScale(1.5);
-        const portadronA = this.add.image(gameState.portaAX*gameState.escala + gameState.tableroX - gameState.tamCelda / 2, gameState.portaAY*gameState.escala + gameState.tableroY+27,"PortaA").setDepth(2).setOrigin(0.5, 0.5);
-        portadronA.setScale(1.5);
-        portadronA.angle = 180;
+        var posX = (gameState.portaNX + (gameState.anchoPorta / 2))* gameState.escala - (gameState.escala* 0.5) + gameState.tableroX;
+        var posY = (gameState.portaNY - (gameState.altoPorta / 2))* gameState.escala + (gameState.escala * 0.5) + gameState.tableroY;
+        this.portadronN = this.add.image(posX, posY, "PortaN").setDepth(2).setOrigin(0.5, 0.5);
+        this.portadronN.setScale(2.8);  // 1.5 
+
+        posX = (gameState.portaAX - (gameState.anchoPorta / 2))* gameState.escala + (gameState.escala* 0.5) + gameState.tableroX;
+        posY = (gameState.portaAY + (gameState.altoPorta / 2))* gameState.escala - (gameState.escala * 0.5) + gameState.tableroY;
+        this.portadronA = this.add.image(posX, posY, "PortaA").setDepth(2).setOrigin(0.5, 0.5);
+        this.portadronA.setScale(2.8);  //  1.5
 
         this.forma = this.add.graphics().setDepth(3);
         this.forma.clear();
         this.forma.fillStyle(0xffffff);
         this.mask = this.forma.createGeometryMask();
 
-        portadronN.setMask(this.mask);
-        portadronA.setMask(this.mask); 
+        this.portadronN.setMask(this.mask);
+        this.portadronA.setMask(this.mask); 
     }
 
     crearTablero() {
@@ -662,6 +668,10 @@ class escena3 extends Phaser.Scene {
             this.escenario.destroy();
         if (this.desplegarBtn)
             this.desplegarBtn.destroy();
+        if (this.portadronA)
+            this.portadronA.destroy();
+       if (this.portadronN)
+            this.portadronN.destroy();
         this.anims.remove('idleN');
         this.anims.remove('idleA');
         this.anims.remove('impactoPortaA');

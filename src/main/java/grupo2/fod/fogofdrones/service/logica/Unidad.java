@@ -4,44 +4,29 @@ import java.io.Serializable;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class Unidad implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private int id;
     private int vida;
-    private int rangoVision;
+    private int vision;
     private Equipo equipo;
-    private Posicion pos;
+    private Posicion posicion;
 
     public Unidad() {}
 
     public Unidad(int idParam, int vidaParam, int visionParam, Equipo equipoParam, Posicion posParam) {
         id = idParam;
         vida = vidaParam;
-        rangoVision = visionParam;
+        vision = visionParam;
         equipo = equipoParam;
-        pos = posParam;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public int getVida() {
-        return vida;
-    }
-    
-    public int getVision() {
-        return rangoVision;
-    }
-    
-    public Equipo getEquipo() {
-        return equipo;
-    }
-
-    public Posicion getPosicion() {
-        return pos;
+        posicion = posParam;
     }
 
     public void recibirDanio() {
@@ -53,10 +38,6 @@ public abstract class Unidad implements Serializable {
         if(vida == 0)
             esta = true;
         return esta;
-    }
-
-    public void setPosicion(Posicion posParam) {
-        pos = posParam;
     }
 
 }

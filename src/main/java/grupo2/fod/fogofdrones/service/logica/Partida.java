@@ -1,7 +1,5 @@
 package grupo2.fod.fogofdrones.service.logica;
 
-import grupo2.fod.fogofdrones.service.valueObject.VoMensaje;
-
 import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
@@ -9,6 +7,8 @@ import java.util.function.Consumer;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import grupo2.fod.fogofdrones.service.valueObject.VoMensaje;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Partida implements Serializable {
@@ -36,9 +36,9 @@ public class Partida implements Serializable {
         dronesAereos = new LinkedList<Dron>();
         dronesNavales = new LinkedList<Dron>();
         Posicion pos = new Posicion(0,35);  // mitad a la derecha del portadrones naval
-        portaDronesNaval = new PortaDrones(0,3,5,Equipo.NAVAL,pos);
+        portaDronesNaval = new PortaDrones(0,3,6,Equipo.NAVAL,pos);
         pos = new Posicion(63,0);           // mitad a la izquierda del portadrones aereo
-        portaDronesAereo = new PortaDrones(0,6,5,Equipo.AEREO,pos);
+        portaDronesAereo = new PortaDrones(0,6,6,Equipo.AEREO,pos);
         fase = FasePartida.DESPLIEGUE;
         turno = Equipo.NAVAL;
         turnosMuerteSubita = 1; // 1 para que no asigne fase terminado durante partida
@@ -250,12 +250,12 @@ public class Partida implements Serializable {
         if (equipoParam == Equipo.NAVAL) {
             int xPorta = portaDronesNaval.getPosicion().getX();
             int yPorta = portaDronesNaval.getPosicion().getY();
-            if(x >= xPorta && x <= xPorta+1 && y >= yPorta-2 && y <= yPorta)      // Portaaviones naval está en zona izquierda específica, columnas 0-1, filas 33-35
+            if(x >= xPorta && x <= xPorta+3 && y >= yPorta-5 && y <= yPorta)      // Portaaviones naval está en zona izquierda específica, columnas 0-3, filas 30-35
                 es = true;
         } else {
             int xPorta = portaDronesAereo.getPosicion().getX();
             int yPorta = portaDronesAereo.getPosicion().getY();
-            if(x >= xPorta-1 && x <= xPorta && y >= yPorta && y <= yPorta+2)    // Portaaviones aéreo está en zona derecha específica, columnas 62-63, filas 0-2
+            if(x >= xPorta-3 && x <= xPorta && y >= yPorta && y <= yPorta+5)    // Portaaviones aéreo está en zona derecha específica, columnas 60-63, filas 0-5
                 es = true;
         }
         return es;
@@ -330,58 +330,6 @@ public class Partida implements Serializable {
         }
 
     }
-
-    /* 
-    public void atacar(Posicion origenParam, Posicion destinoParam) {
-        if(puedeAtacar(origenParam, destinoParam)) {
-            Equipo enemigo = turno.siguienteEquipo();
-            Celda celdaOrigen = tablero.getCelda(origenParam);
-            Dron dron = celdaOrigen.getDronEquipo(turno);
-            Celda celdaDestino = tablero.getCelda(destinoParam);
-
-            System.out.println("Municion antes: " + dron.getMunicion());
-            dron.consumirMunicion();
-            System.out.println("Municion despues: " + dron.getMunicion());
-            emitirMensaje("Municion consumida. Restante: " + dron.getMunicion(), 4);
-
-            if(celdaDestino.tieneDronEquipo(enemigo)) {
-                Dron dronEnemigo = celdaDestino.getDronEquipo(enemigo);
-                dronEnemigo.recibirDanio();
-                tablero.eliminarDron(dronEnemigo, enemigo);
-                if(enemigo == Equipo.NAVAL){
-                    dronesNavales.removeIf(d ->d.getId() == dronEnemigo.getId()); //dronesNavales.remove(dronEnemigo.getId());
-                }else
-                    dronesAereos.removeIf(d ->d.getId() == dronEnemigo.getId());
-                System.out.println("Drone enemigo derribado");
-                emitirMensaje("Drone enemigo derribado", 4);
-            } else if(esZonaPortaDrones(destinoParam, enemigo)) {
-                PortaDrones aux = getPortaDronesEquipo(enemigo);
-                aux.recibirDanio();
-                System.out.println("PortaDrones enemigo impactado. Vida restante: " + aux.getVida());
-                emitirMensaje("PortaDrones enemigo impactado. Vida restante: " + aux.getVida(),4);
-                if(aux.estaMuerto()){
-                    activarMuerteSubita(enemigo);
-                    System.out.println("PortaDrones enemigo derribado");
-                    emitirMensaje("PortaDrones enemigo derribado",4);
-                }
-            } else {
-                System.out.println("Disparo al agua: no acerto a ningun enemigo");
-                emitirMensaje("Disparo al agua: no acerto a ningun enemigo",4);
-            }
-
-            disparo = true;
-            actualizarVision();
-            System.out.println("Ataque realizado exitosamente");
-            emitirMensaje("Ataque realizado exitosamente");
-
-            if (esFinPartida()) {
-                finalizarPartida();
-            }
-        } else {
-            System.out.println("Error: ataque no valido");
-        }
-
-    }*/
 
     public void terminarTurno() {
         if(disparo | seMovio | recargo) {
@@ -561,21 +509,26 @@ public class Partida implements Serializable {
         tablero.resetearVision();
     
         for (Dron dron : dronesNavales) {
-            //tablero.marcarVision(dron.getPosicion(), dron.getVision(), Equipo.NAVAL);
-            tablero.marcarVision(dron.getPosicion(), 3, Equipo.NAVAL);
+            tablero.marcarVision(dron.getPosicion(), dron.getVision(), Equipo.NAVAL);
+            //tablero.marcarVision(dron.getPosicion(), 3, Equipo.NAVAL);
         }
         
         for (Dron dron : dronesAereos) {
-            //tablero.marcarVision(dron.getPosicion(), dron.getVision(), Equipo.AEREO);
-            tablero.marcarVision(dron.getPosicion(), 6, Equipo.AEREO);
+            tablero.marcarVision(dron.getPosicion(), dron.getVision(), Equipo.AEREO);
+            //tablero.marcarVision(dron.getPosicion(), 6, Equipo.AEREO);
         }
         
-        Posicion posPortaNaval = new Posicion(portaDronesNaval.getPosicion().getX()+1, portaDronesNaval.getPosicion().getY()-1);
-        Posicion posPortaAereo = new Posicion(portaDronesAereo.getPosicion().getX()-1, portaDronesAereo.getPosicion().getY()+1);
-        //tablero.marcarVision(posPortaNaval, portaDronesAereo.getVision(), Equipo.NAVAL);
-        //tablero.marcarVision(posPortaAereo, portaDronesAereo.getVision(), Equipo.AEREO);
-        tablero.marcarVision(posPortaNaval, 6, Equipo.NAVAL);
-        tablero.marcarVision(posPortaAereo, 6, Equipo.AEREO);
+        if (!portaDronesNaval.estaMuerto()) {
+            Posicion posPortaNaval = new Posicion(portaDronesNaval.getPosicion().getX()+1, portaDronesNaval.getPosicion().getY()-3);
+            tablero.marcarVision(posPortaNaval, portaDronesNaval.getVision(), Equipo.NAVAL);
+        }
+        if (!portaDronesAereo.estaMuerto()) {
+            Posicion posPortaAereo = new Posicion(portaDronesAereo.getPosicion().getX()-1, portaDronesAereo.getPosicion().getY()+3);
+            tablero.marcarVision(posPortaAereo, portaDronesAereo.getVision(), Equipo.AEREO);
+        }
+        
+        //tablero.marcarVision(posPortaNaval, 6, Equipo.NAVAL);
+        //tablero.marcarVision(posPortaAereo, 6, Equipo.AEREO);
 
     }
 

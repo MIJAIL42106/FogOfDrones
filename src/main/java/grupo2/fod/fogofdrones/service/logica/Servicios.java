@@ -177,6 +177,8 @@ public class Servicios{
             partidas.put(clave, partida);
             repoPartidas.delete(persistencia);
             
+            // borrar
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             getPartidaPorClave(clave).actualizarTablero();
             getPartidaPorClave(clave).actualizarVision();
             getPartida(jugadorN, jugadorA).actualizarTablero();
