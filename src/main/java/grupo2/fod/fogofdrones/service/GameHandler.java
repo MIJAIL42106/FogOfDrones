@@ -118,6 +118,23 @@ public class GameHandler {
 						String respuesta = mensajeRetorno(p);
 						String canal = getCanalPartida(p);
 						messagingTemplate.convertAndSend(canal, respuesta);
+
+						// Si la partida terminó, enviar mensaje de finalización
+						if (p.getFasePartida() == FasePartida.TERMINADO) {
+							String nombreNaval = p.getJugadorNaval().getNombre();
+							String nombreAereo = p.getJugadorAereo().getNombre();
+							servicios.finalizarPartida(nombreNaval, nombreAereo); 
+							
+							Equipo ganador = p.getEquipoGanador();
+							VoMensaje finMsg = VoMensaje.builder()
+								.tipoMensaje(5) // Nuevo tipo para finalización
+								.evento("La partida ha terminado")
+								.nombre(ganador != null ? ganador.toString() : "Empate")
+								.fasePartida(FasePartida.TERMINADO)
+								.build();
+							String finRespuesta = mapper.writeValueAsString(finMsg);
+							messagingTemplate.convertAndSend(canal, finRespuesta);
+						}
 						
 					} else {
 						// Enviar mensaje de error al jugador
@@ -261,7 +278,7 @@ public class GameHandler {
 					messagingTemplate.convertAndSend(canalInicio, estadoInicial);
 				}
 			} else {
-				enviarErrorLogin(nombre, "No se pudo asignar jugador. Intenta nuevamente"); // "No se pudo asignar jugador. Intenta nuevamente"
+				enviarErrorLogin(nombre, "El jugador ingresado ya se encuentra en una partida. Intenta nuevamente"); // "No se pudo asignar jugador. Intenta nuevamente"
 				LOGGER.warn("Login no asignado para '{}'. Estado actual jugador1='{}', jugador2='{}'", nombre, jugador1, jugador2);
 			}
 		} catch (Exception e) {
@@ -497,11 +514,13 @@ public class GameHandler {
 ////////////////////////////////////////////////////////////////////////////////////////
 				System.out.println(partidaCargada.getJugadorNaval().getNombre() + " - " + partidaCargada.getJugadorAereo().getNombre());
 
-				// Enviar estado actual de la partida cargada
+				String estadoInicial = mensajeRetorno(partidaCargada);
+				messagingTemplate.convertAndSend(canalPartida, estadoInicial);
+				/* Enviar estado actual de la partida cargada
 				if (partidaCargada != null) {
 					String estadoInicial = mensajeRetorno(partidaCargada);
 					messagingTemplate.convertAndSend(canalPartida, estadoInicial);
-				}
+				}*/
 			} else {
 				enviarErrorLogin(nombre, "No se pudo cargar la partida. Intenta nuevamente.");
 				LOGGER.warn("Carga no asignada para '{}'. Estado actual jugadorCarga1='{}', jugadorCarga2='{}'", nombre, jugadorCarga1, jugadorCarga2);

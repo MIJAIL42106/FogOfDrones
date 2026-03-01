@@ -215,9 +215,20 @@ class escena3 extends Phaser.Scene {
                     alert("err:"+msg.evento);
                 }
             }break;
-            case tipoMensaje.NOTIFICACION: { 
-                //alert("noti:"+msg.evento);
-                //this.pantallaImpactos.play('impactoPortaA');
+            case 5: { // FINALIZACION
+                // Mostrar cartel de finalización y ganador
+                let ganador = msg.nombre;
+                let mensajeFin = msg.evento + "\nGanador: " + ganador;
+                alert(mensajeFin);
+                // Al aceptar, salir de la partida y volver al menú
+                this.scene.stop('partida');
+                this.scene.start('menu');
+                // Desconectar websocket si es necesario
+                if (window.conexionWS) {
+                    window.conexionWS.desconectar();
+                }
+            } break;
+            default: {
                 switch (msg.evento) {
                     case "PORTADERRIBADOAEREO":{
                         this.pantallaImpactos.play('impactoPortaA');
@@ -252,8 +263,7 @@ class escena3 extends Phaser.Scene {
                         }
                     }break;
                 }
-                
-            }break;//*/
+            }break;
         } 
     }
 

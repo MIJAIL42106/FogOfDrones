@@ -90,18 +90,24 @@ public class Servicios{
         switch (ganador) {
             case NAVAL: {
                 partida.getJugadorNaval().sumarVictoria();
-                partida.getJugadorNaval().sumarPuntos(10); // Ejemplo de puntos por victoria
-                repo.save(partida.getJugadorNaval());
+                partida.getJugadorNaval().sumarPuntos(10);
+                if(partida.getJugadorAereo().getPuntos() > 0) {
+                    partida.getJugadorAereo().sumarPuntos(-5);
+                }
             } break;
             case AEREO: {
                 partida.getJugadorAereo().sumarVictoria();
-                partida.getJugadorAereo().sumarPuntos(10); // Ejemplo de puntos por victoria
-                repo.save(partida.getJugadorAereo());
+                partida.getJugadorAereo().sumarPuntos(10);
+                if(partida.getJugadorNaval().getPuntos() > 0) {
+                    partida.getJugadorNaval().sumarPuntos(-5);
+                }
             } break;
             default:
                 // Empate, no se suman victorias ni puntos
                 break;
         }
+        repo.save(partida.getJugadorNaval());
+        repo.save(partida.getJugadorAereo());
         eliminarPartida(nombre1, nombre2);
     }
 
@@ -109,7 +115,7 @@ public class Servicios{
         String clave = generarClave(nombre1, nombre2);
         Partida partida = partidas.get(clave);
         if (partida != null) {
-            Persistencia persistencia = new Persistencia(partida, nombre1, nombre2);
+            Persistencia persistencia = new Persistencia(partida, nombre2, nombre1);
             repoPartidas.save(persistencia);
             eliminarPartida(nombre1, nombre2);
         }
@@ -145,6 +151,10 @@ public class Servicios{
         if (persistencia != null) {
             Partida partida = persistencia.getPartida();
             partida.actualizarTablero();
+            // Forzar recuperación correcta de la fase
+            if (persistencia.getPartida() != null && persistencia.getPartida().getFasePartida() != null) {
+                partida.setFasePartida(persistencia.getPartida().getFasePartida());
+            }
             String jugadorA = partida.getJugadorAereo().getNombre();
             String jugadorN = partida.getJugadorNaval().getNombre();
             String clave = generarClave(jugadorN, jugadorA);

@@ -13,6 +13,7 @@ import lombok.Setter;
 @Builder
 @AllArgsConstructor
 public class VoMensaje {
+    // 0: cargar, 1: estado, 2: guardado, 3: error, 4: notificación, 5: finalización
     private int tipoMensaje;
     private FasePartida fasePartida;
     private Celda[] grilla;

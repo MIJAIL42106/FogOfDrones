@@ -646,4 +646,7 @@ public class Partida implements Serializable {
         actualizarVision();
     }
 
+    public void setFasePartida(FasePartida fase) {
+        this.fase = fase;
+    }
 }
