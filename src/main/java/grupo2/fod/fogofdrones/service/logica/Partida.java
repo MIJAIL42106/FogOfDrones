@@ -120,7 +120,7 @@ public class Partida implements Serializable {
             // emitirMensaje("Dron desplegado exitosamente",4);
         } else {
             System.out.println("Error: despliegue no valido");
-            emitirMensaje("Error: despliegue no valido",3);
+            //emitirMensaje("Error: despliegue no valido",3);
         }
     
         if(despliegueTerminadoEquipo(turno)) {
@@ -158,12 +158,13 @@ public class Partida implements Serializable {
                         puede = false;
                         System.out.println("Error: el lugar a donde quiere mover esta fuera de alcance");
                         emitirMensaje("Destino fuera de alcance para este dron",3);
-                    } else {
+                    } else { /*
                         if(esZonaPortaDrones(destinoParam, turno)) {
                         puede = false;
                         System.out.println("Error: no puedes moverte subre tu propio porta drones");
                         emitirMensaje("No puedes moverte sobre tu propio PortaDrones",3);
-                        } else {
+                        } else */
+                        {
                             Celda celdaDestino = tablero.getCelda(destinoParam);    // verifica si en el destino hay un dron aliado
                             if (celdaDestino.tieneDronEquipo(turno)) {
                                 puede = false;
@@ -194,7 +195,7 @@ public class Partida implements Serializable {
             // emitirMensaje("Movimiento realizado correctamente",4);
         } else {
             System.out.println("Error: movimiento no valido");
-            emitirMensaje("Error: movimiento no valido",3);
+            //emitirMensaje("Error: movimiento no valido",3);
         }
     }
 
@@ -326,7 +327,7 @@ public class Partida implements Serializable {
                 finalizarPartida();
             }
         } else {
-            System.out.println("Error: ataque no valido");
+            //System.out.println("Error: ataque no valido");
         }
 
     }
@@ -450,7 +451,7 @@ public class Partida implements Serializable {
             terminarTurno();
         } else {
             System.out.println("Error: recarga no vilida");
-            emitirMensaje("Error: recarga no valida",3);
+            //emitirMensaje("Error: recarga no valida",3);
         }
     }
     
