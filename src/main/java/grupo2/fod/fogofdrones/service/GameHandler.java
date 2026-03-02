@@ -157,55 +157,6 @@ public class GameHandler {
 				break;	
 			}
 			
-
-			/* 
-			if (p.esMiTurno(nombre)) {
-				// Si es el turno del jugador, procesar la acción
-				if (p.getFasePartida() == FasePartida.DESPLIEGUE) {
-					handleDesplegar(data, p);
-				} else {
-					switch (accion) {
-						case "MOVER":
-							handleMover(data, p);
-							break;
-						case "ATACAR":
-							handleAtacar(data, p);
-							break;
-						case "RECARGAR":
-							handleRecargar(data, p);
-							break;
-						case "PASAR":
-							p.terminarTurno();
-							break;
-					}
-				}
-				
-				// Enviar estado actualizado a todos los clientes
-				String respuesta = mensajeRetorno(p);
-				messagingTemplate.convertAndSend("/topic/game", respuesta);
-				
-			}
-			switch (accion) {
-				case "GUARDAR":
-					System.out.println("case GUARDAR");
-					handleGuardar(nombre, p);
-					break;
-				case "RECHAZAR":
-					System.out.println("case RECHAZAR");
-					handleRechazar(nombre, p);
-					break;
-				case "ACEPTAR":
-					System.out.println("case ACEPTAR");
-					handleAceptar(nombre, p);
-					break;
-				default:
-					// Enviar mensaje de error al jugador
-					VoMensaje mensajeError = new VoMensaje(nombre, 3); // "No es tu turno"
-					String respuesta = mapper.writeValueAsString(mensajeError);
-					messagingTemplate.convertAndSend("/topic/game", respuesta);
-				break;	
-			}*/
-			
 		} catch (Exception e) {
 			//Error procesando acción: 
 		}
@@ -285,6 +236,8 @@ public class GameHandler {
 					messagingTemplate.convertAndSend(canalInicio, estadoInicial);
 				}
 			} else {
+				jugador1 = null;
+				jugador2 = null;
 				enviarErrorLogin(nombre, "No se pudo asignar jugador. Intenta nuevamente"); // "No se pudo asignar jugador. Intenta nuevamente"
 				LOGGER.warn("Login no asignado para '{}'. Estado actual jugador1='{}', jugador2='{}'", nombre, jugador1, jugador2);
 			}
@@ -297,6 +250,7 @@ public class GameHandler {
 	private void enviarErrorLogin(String nombre, String error) {
 		try {
 			VoMensaje mensajeError = VoMensaje.builder()	// ver escena1
+				.tipoMensaje(3)
 				.nombre(nombre)
 				.evento(error)
 				.build();	///new VoMensaje(nombre, error);
@@ -478,7 +432,7 @@ public class GameHandler {
 				// Enviar mensaje de error especial para carga
 				try {
 					VoMensaje mensajeError = VoMensaje.builder()
-						.tipoMensaje(2)
+						.tipoMensaje(3)
 						.nombre(nombre)
 						.evento("No tienes partida guardada")
 						.build();
@@ -564,6 +518,8 @@ public class GameHandler {
 				String estadoInicial = mensajeRetorno(partidaCargada);
 				messagingTemplate.convertAndSend(canalInicio, estadoInicial);
 			} else {
+				jugadorCarga1 = null;
+				jugadorCarga2 = null;
 				enviarErrorLogin(nombre, "No se pudo cargar la partida. Intenta nuevamente.");
 				LOGGER.warn("Carga no asignada para '{}'. Estado actual jugadorCarga1='{}', jugadorCarga2='{}'", nombre, jugadorCarga1, jugadorCarga2);
 			}
@@ -572,4 +528,17 @@ public class GameHandler {
 			enviarErrorLogin((String) data.get("nombre"), "Error interno al cargar partida");
 		}
 	}
+
+	@MessageMapping("/ranking")
+	public void handleRanking(@Payload Map<String, Object> data) {
+		System.out.println("ranking");
+		String t = null;
+		try {
+			t = mapper.writeValueAsString(servicios.getRanking());
+			messagingTemplate.convertAndSend("/topic/ranking", t );
+		} catch (Exception e) {
+
+		}
+
+	}	
 }

@@ -16,8 +16,6 @@ class escena1 extends Phaser.Scene {
     }
     preload() {
         this.load.image("FondoMenu",".//assets/fondos/fondo_lobby.png");
-        this.load.image("Buscar",".//assets/fondos/Buscar.png");
-        this.load.image("Cargar",".//assets/fondos/Cargar.png");
     }  
 
     create() { 
@@ -34,28 +32,38 @@ class escena1 extends Phaser.Scene {
         
         this.crearNombreInput();
 
-        this.jugarBtn = this.add.text(width / 2, height - 50, 'Jugar', {
-            fontSize: '40px',
-            color: '#ffffff',
-            backgroundColor: '#4bae5f',
-            padding: { x: 20, y: 10 }
-        }).setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
+        // Botones grandes y centrados con estilo militar
+        const botonStyle = {
+            fontSize: '48px',
+            fontFamily: 'Cambria, "Times New Roman", serif',
+            color: '#f0f7e0',
+            padding: { x: 40, y: 20 },
+            stroke: '#000000',
+            strokeThickness: 4
+        };
 
-        this.cargarBtn = this.add.text(width / 2, height - 110, 'Cargar', {
-            fontSize: '40px',
-            color: '#ffffff',
-            backgroundColor: '#4b7ae5',
-            padding: { x: 20, y: 10 }
-        }).setOrigin(0.5)
+        this.jugarBtn = this.add.text(width / 2, height * 0.65, 'BUSCAR PARTIDA', botonStyle)
+        .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
+        // verde claro por defecto
+        this.jugarBtn.setBackgroundColor('#66bb6a');
 
-        this.estadoTexto = this.add.text(width / 2, height - 120, '', {
-            fontSize: '24px',
-            color: '#ffffff'
+        this.cargarBtn = this.add.text(width / 2, height * 0.80, 'CARGAR PARTIDA', botonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+        // azul por defecto
+        this.cargarBtn.setBackgroundColor('#4b7ae5');
+
+        this.estadoTexto = this.add.text(width / 2, height * 0.9, '', {
+            fontSize: '26px',
+            fontFamily: 'Cambria, "Times New Roman", serif',
+            color: '#f0f7e0'
         }).setOrigin(0.5);
 
         this.conectarSTOMP();
+
+        // Crear y cargar ranking
+        this.crearUIRanking();
 
         this.jugarBtn.on('pointerdown', () => {
             if (this.buscandoPartida) {
@@ -69,8 +77,8 @@ class escena1 extends Phaser.Scene {
             }
             this.buscandoPartida = true;
             this.nombreInput.disabled = true;
-            this.jugarBtn.setText('Cancelar');
-            this.jugarBtn.setBackgroundColor('#ff6b6b');
+            this.jugarBtn.setText('CANCELAR');
+            this.jugarBtn.setBackgroundColor('#c62828'); // rojo al cancelar
             this.estadoTexto.setText('Esperando contrincante...');
             this.awaitingLoginResponse = true;
             window.conexionWS.enviar('/app/login', { nombre: mensajeLogin.nombre });
@@ -88,8 +96,8 @@ class escena1 extends Phaser.Scene {
             }
             this.cargandoPartida = true;
             this.nombreInput.disabled = true;
-            this.cargarBtn.setText('Cancelar');
-            this.cargarBtn.setBackgroundColor('#ff6b6b');
+            this.cargarBtn.setText('CANCELAR');
+            this.cargarBtn.setBackgroundColor('#c62828'); // rojo al cancelar
             this.estadoTexto.setText('Esperando al rival...');
             window.conexionWS.enviar('/app/cargar', { nombre: mensajeLogin.nombre });
         });
@@ -103,19 +111,22 @@ class escena1 extends Phaser.Scene {
                 const nombreRemoto = this.normalizarNombre(msg.nombre);
                 const mismoJugador = nombreLocal.length > 0 && nombreLocal === nombreRemoto;
                 // Manejo de error de login y de carga
-                if (msg && msg.tipoMensaje === 2 && mismoJugador) {
+                if (msg && msg.tipoMensaje === 3 && mismoJugador) {
                     // Si el error es por cargar partida guardada
                     if (msg.evento && msg.evento.includes('No tienes partida guardada')) {
                         alert('No tienes partida guardada');
                         this.cancelarCarga();
-                        return;
+                        return;//////////////////////////////////////////// reeturn peruano
                     }
-                    this.awaitingLoginResponse = false;
+                    // Error de login/búsqueda de partida
+                    this.cancelarCarga();
+                    this.cancelarBusqueda();/*
                     this.buscandoPartida = false;
+                    this.awaitingLoginResponse = false;
                     this.nombreInput.disabled = false;
-                    this.jugarBtn.setText('Jugar');
-                    this.jugarBtn.setBackgroundColor('#4bae5f');
-                    this.estadoTexto.setText('');
+                    this.jugarBtn.setText('BUSCAR PARTIDA');
+                    this.jugarBtn.setBackgroundColor('#66bb6a'); // verde claro por defecto
+                    this.estadoTexto.setText('');*/
                     alert(msg.error || 'No se pudo iniciar sesión');
                     return;
                 }
@@ -140,6 +151,36 @@ class escena1 extends Phaser.Scene {
                     this.iniciarPartida(mensajeLogin.nombre, msg.equipo, this.canalPartida);
                 }
             });
+            window.conexionWS.suscribir('/topic/ranking', (msg) => {
+                if (!Array.isArray(msg) || msg.length === 0) {
+                    if (this.rankingDiv) {
+                        this.rankingDiv.textContent = 'Sin datos de jugadores';
+                    }
+                        return;
+                }
+
+                // Cabecera y filas con columnas alineadas, pero más compactas
+                const headerIndex = '#'.padEnd(3, ' ');       // columna índice (incluye ".")
+                const headerNombre = 'Nombre'.padEnd(12, ' ');
+                const headerPts = 'Pts'.padStart(4, ' ');
+                const headerVic = 'Vic'.padStart(4, ' ');
+
+                let lineas = [headerIndex + headerNombre + headerPts + headerVic];
+
+                msg.forEach((jug, idx) => {
+                    const pos = (idx + 1).toString();
+                    const colIndex = (pos + '.').padEnd(3, ' ');
+                    const nombre = (jug.nombre || '').toString().substring(0, 10).padEnd(12, ' ');
+                    const puntos = String(jug.puntos ?? 0).padStart(4, ' ');
+                    const vict = String(jug.victorias ?? 0).padStart(4, ' ');
+                    lineas.push(colIndex + nombre + puntos + vict);
+                });
+
+                if (this.rankingDiv) {
+                    this.rankingDiv.textContent = lineas.join('\n');
+                }
+            });
+            window.conexionWS.enviar('/app/ranking', { });
         }, (error) => {
             this.estadoTexto.setText('Error de conexión');
         });
@@ -149,16 +190,16 @@ class escena1 extends Phaser.Scene {
         this.buscandoPartida = false;
         this.awaitingLoginResponse = false;
         this.nombreInput.disabled = false;
-        this.jugarBtn.setText('Jugar');
-        this.jugarBtn.setBackgroundColor('#4bae5f');
+        this.jugarBtn.setText('BUSCAR PARTIDA');
+        this.jugarBtn.setBackgroundColor('#66bb6a'); // verde claro por defecto
         this.estadoTexto.setText('');
     }
 
     cancelarCarga() {
         this.cargandoPartida = false;
         this.nombreInput.disabled = false;
-        this.cargarBtn.setText('Cargar');
-        this.cargarBtn.setBackgroundColor('#4b7ae5');
+        this.cargarBtn.setText('CARGAR PARTIDA');
+        this.cargarBtn.setBackgroundColor('#4b7ae5'); // azul por defecto
         this.estadoTexto.setText('');
     }
     
@@ -197,31 +238,160 @@ class escena1 extends Phaser.Scene {
 
     // inputs HTML
     crearNombreInput() {
-        const { width } = this.cameras.main;
+        const { width, height } = this.cameras.main;
 
-        // input
+        // input grande y centrado estilo militar
         this.nombreInput = document.createElement('input');
         this.nombreInput.type = 'text';
         this.nombreInput.id = 'nombre';
-        this.nombreInput.placeholder = 'Tu nombre';
+        this.nombreInput.placeholder = 'INGRESA TU NOMBRE';
         this.nombreInput.maxLength = 20;
         this.nombreInput.style.cssText = `
-            position: relative;
+            position: absolute;
             left: 50%;
-            bottom: 20%;
-            width: 200px;
-            height: 16px;
-            transform: translate(-113px, -100px);
-            padding: 2px;
-            font-size: 16px;
-            border: 2px solid #667eea;
-            border-radius: 5px;
+            top: 45%;
+            width: 320px;
+            height: 32px;
+            transform: translate(-50%, -40px);
+            padding: 6px 10px;
+            font-size: 20px;
+            font-family: 'Cambria', 'Times New Roman', serif;
+            color: #f0f7e0;
+            background-color: rgba(10, 30, 10, 0.85);
+            border: 3px solid #5a7f3a;
+            border-radius: 6px;
+            text-align: center;
+            text-transform: uppercase;
+            outline: none;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.7);
         `;
         document.body.appendChild(this.nombreInput);
 
         this.domElements = [this.nombreInput];
     }
     
+    crearUIRanking() {
+        const { width } = this.cameras.main;
+        const panelX = width - 360; // desplazado hacia la izquierda
+        const panelY = 60;
+
+        // Panel de fondo tipo consola militar
+        const panel = this.add.rectangle(panelX + 160, panelY + 160, 320, 260, 0x0b1a0b, 0.85)
+            .setStrokeStyle(3, 0x5a7f3a, 1);
+
+        this.rankingTitulo = this.add.text(panelX + 16, panelY - 10, 'RANKING DE JUGADORES', {
+            fontSize: '24px',
+            fontFamily: 'Cambria, "Times New Roman", serif',
+            color: '#d7ffb2',
+            fontStyle: 'bold'
+        }).setOrigin(0, 0);
+
+        // Contenedor HTML con scroll para el listado del ranking
+        this.rankingDiv = document.createElement('pre');
+        this.rankingDiv.id = 'rankingJugadores';
+        this.rankingDiv.textContent = 'Cargando ranking...';
+        this.rankingDiv.style.cssText = `
+            position: absolute;
+            right: 112px;
+            top: 92.5px;
+            width: 260px;
+            max-height: 210px;
+            margin: 0;
+            padding: 4px 8px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            color: #f0f7e0;
+            background: transparent;
+            border: none;
+            overflow-y: auto;
+            white-space: pre;
+        `;
+        document.body.appendChild(this.rankingDiv);
+
+        // Añadir también este elemento a la lista de DOM para limpiarlo luego
+        if (!this.domElements) {
+            this.domElements = [];
+        }
+        this.domElements.push(this.rankingDiv);
+
+        //this.cargarRanking();
+    }
+    /*
+    cargarRanking() {
+        window.conexionWS.suscribir('/topic/ranking', (msg) => {
+            if (!Array.isArray(msg) || msg.length === 0) {
+                if (this.rankingDiv) {
+                    this.rankingDiv.textContent = 'Sin datos de jugadores';
+                }
+                    return;
+            }
+
+            // Cabecera y filas con columnas alineadas, pero más compactas
+            const headerIndex = '#'.padEnd(3, ' ');       // columna índice (incluye ".")
+            const headerNombre = 'Nombre'.padEnd(12, ' ');
+            const headerPts = 'Pts'.padStart(4, ' ');
+            const headerVic = 'Vic'.padStart(4, ' ');
+
+            let lineas = [headerIndex + headerNombre + headerPts + headerVic];
+
+            msg.forEach((jug, idx) => {
+                const pos = (idx + 1).toString();
+                const colIndex = (pos + '.').padEnd(3, ' ');
+                const nombre = (jug.nombre || '').toString().substring(0, 10).padEnd(12, ' ');
+                const puntos = String(jug.puntos ?? 0).padStart(4, ' ');
+                const vict = String(jug.victorias ?? 0).padStart(4, ' ');
+                lineas.push(colIndex + nombre + puntos + vict);
+            });
+
+            if (this.rankingDiv) {
+                this.rankingDiv.textContent = lineas.join('\n');
+            }
+        });
+        window.conexionWS.enviar('/app/ranking', { });
+            /*
+        fetch('/api/ranking')
+            .then(resp => {
+                if (!resp.ok) {
+                    throw new Error('Error HTTP');
+                }
+                return resp.json();
+            })
+            .then(data => {
+                if (!Array.isArray(data) || data.length === 0) {
+                    if (this.rankingDiv) {
+                        this.rankingDiv.textContent = 'Sin datos de jugadores';
+                    }
+                    return;
+                }
+
+                // Cabecera y filas con columnas alineadas, pero más compactas
+                const headerIndex = '#'.padEnd(3, ' ');       // columna índice (incluye ".")
+                const headerNombre = 'Nombre'.padEnd(12, ' ');
+                const headerPts = 'Pts'.padStart(4, ' ');
+                const headerVic = 'Vic'.padStart(4, ' ');
+
+                let lineas = [headerIndex + headerNombre + headerPts + headerVic];
+
+                data.forEach((jug, idx) => {
+                    const pos = (idx + 1).toString();
+                    const colIndex = (pos + '.').padEnd(3, ' ');
+                    const nombre = (jug.nombre || '').toString().substring(0, 10).padEnd(12, ' ');
+                    const puntos = String(jug.puntos ?? 0).padStart(4, ' ');
+                    const vict = String(jug.victorias ?? 0).padStart(4, ' ');
+                    lineas.push(colIndex + nombre + puntos + vict);
+                });
+
+                if (this.rankingDiv) {
+                    this.rankingDiv.textContent = lineas.join('\n');
+                }
+            })
+            .catch(() => {
+                if (this.rankingDiv) {
+                    this.rankingDiv.textContent = 'No se pudo cargar el ranking';
+                }
+            });*/
+    //}
+
     shutdown() {
         window.conexionWS.desuscribir('/topic/login');
         window.conexionWS.desuscribir('/topic/partida-lista');

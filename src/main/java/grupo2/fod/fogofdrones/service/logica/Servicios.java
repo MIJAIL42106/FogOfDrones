@@ -1,5 +1,6 @@
 package grupo2.fod.fogofdrones.service.logica;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -170,6 +171,10 @@ public class Servicios{
                 partida.setFasePartida(FasePartida.DESPLIEGUE);
             }
             
+            /*
+            if (persistencia.getPartida() != null && persistencia.getPartida().getFasePartida() != null) {
+                partida.setFasePartida(persistencia.getPartida().getFasePartida());
+            } */
             
             String jugadorA = partida.getJugadorAereo().getNombre();
             String jugadorN = partida.getJugadorNaval().getNombre();
@@ -190,5 +195,9 @@ public class Servicios{
             System.out.println("Error: no se encontró una partida con esos jugadores");
             return null;
         }
+    }
+
+    public List<Jugador> getRanking() {
+        return repo.findAllByOrderByPuntosDescVictoriasDesc();
     }
 }
