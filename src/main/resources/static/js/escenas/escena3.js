@@ -22,7 +22,11 @@ gameState = {
     altoPorta: 6,
     escala: 22.36,
     tamCelda: 23,
-    solicitandoGuardado: false
+    solicitandoGuardado: false,
+    droneSeleccionadoIdx: null,
+    droneClicksDespues: 0,
+    droneAccionX: null,
+    droneAccionY: null
 }; 
 
 const mensaje = {
@@ -57,16 +61,70 @@ class Celda {                                   // calse celda para grilla
         this.tile.on('pointerdown', () => {     // asigna interaccion al clikear
             //grid.textoMunicion.setText("-/-");
             if (gameState.fase === "DESPLIEGUE") {
-                grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0.0, gameState.bordes);
+                const idxPrev = mensaje.xi + (mensaje.yi * gameState.ancho);
+                const celdaPrev = grid.tablero.getAt(idxPrev);
+                if (celdaPrev && celdaPrev.setStrokeStyle) {
+                    celdaPrev.setStrokeStyle(0.0, gameState.bordes);
+                }
                 mensaje.xi = x;
                 mensaje.yi = y;
-                //mensaje.xf = x;
-                //mensaje.yf = y;
+                mensaje.xf = x;
+                mensaje.yf = y;
                 this.tile.setStrokeStyle(3, gameState.colorSelec);    // hacer funcion borrar tinte seleccion para borrar al apretar boton
             } else {
+                // Si hay un dron seleccionado, contamos los clics de casilla
+                if (gameState.droneSeleccionadoIdx !== null && gameState.droneSeleccionadoIdx !== undefined) {
+                    if (gameState.droneClicksDespues === undefined) {
+                        gameState.droneClicksDespues = 0;
+                    }
+                    gameState.droneClicksDespues++;
+                    // En el primer clic de casilla después de seleccionar dron,
+                    // reiniciamos la selección: se borran la inicial y la final anteriores
+                    // (sin tocar la celda del dron), y este clic pasa a ser la nueva selección inicial.
+                    if (gameState.droneClicksDespues === 1) {
+                        const idxIniSel = mensaje.xi + (mensaje.yi * gameState.ancho);
+                        const idxFinSel = mensaje.xf + (mensaje.yf * gameState.ancho);
+
+                        if (idxIniSel !== gameState.droneSeleccionadoIdx) {
+                            const celIniSel = grid.tablero.getAt(idxIniSel);
+                            if (celIniSel && celIniSel.setStrokeStyle) {
+                                celIniSel.setStrokeStyle(0, gameState.bordes);
+                            }
+                        }
+                        if (idxFinSel !== idxIniSel && idxFinSel !== gameState.droneSeleccionadoIdx) {
+                            const celFinSel = grid.tablero.getAt(idxFinSel);
+                            if (celFinSel && celFinSel.setStrokeStyle) {
+                                celFinSel.setStrokeStyle(0, gameState.bordes);
+                            }
+                        }
+
+                        // Este clic se considera el primer clic de selección
+                        gameState.clicks = 1;
+                        mensaje.xi = x;
+                        mensaje.yi = y;
+                        mensaje.xf = x;
+                        mensaje.yf = y;
+                        this.tile.setStrokeStyle(3, gameState.colorSelec);
+                        return;
+                    }
+                    // En el segundo clic de casilla después de seleccionar dron,
+                    // se quita el borde del dron y se limpia el estado.
+                    if (gameState.droneClicksDespues >= 2) {
+                        const celDron = grid.tablero.getAt(gameState.droneSeleccionadoIdx);
+                        if (celDron && celDron.setStrokeStyle) {
+                            celDron.setStrokeStyle(0, gameState.bordes);
+                        }
+                        gameState.droneSeleccionadoIdx = null;
+                        gameState.droneClicksDespues = 0;
+                    }
+                }
                 if (gameState.clicks === 0){
                     gameState.clicks ++;
-                    grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0.0, gameState.bordes);
+                    const idxPrev = mensaje.xi + (mensaje.yi * gameState.ancho);
+                    const celdaPrev = grid.tablero.getAt(idxPrev);
+                    if (celdaPrev && celdaPrev.setStrokeStyle) {
+                        celdaPrev.setStrokeStyle(0.0, gameState.bordes);
+                    }
                     mensaje.xi = x;
                     mensaje.yi = y;
                     mensaje.xf = x;
@@ -75,16 +133,33 @@ class Celda {                                   // calse celda para grilla
                     this.tile.setStrokeStyle(3, gameState.colorSelec);
                 } else if ( gameState.clicks === 1 ) {
                     gameState.clicks ++;
-                    grid.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0.0, gameState.bordes);
+                    const idxIni = mensaje.xi + (mensaje.yi * gameState.ancho);
+                    const idxPrev = mensaje.xf + (mensaje.yf * gameState.ancho);
+                    // No borrar el borde si la "final" anterior coincide con la inicial.
+                    // Esto permite que queden iluminadas 2 casillas (ini + fin).
+                    if (idxPrev !== idxIni) {
+                        const celdaPrev = grid.tablero.getAt(idxPrev);
+                        if (celdaPrev && celdaPrev.setStrokeStyle) {
+                            celdaPrev.setStrokeStyle(0.0, gameState.bordes);
+                        }
+                    }
                     mensaje.xf = x;
                     mensaje.yf = y;
                     this.tile.setStrokeStyle(3, gameState.colorSelec);
                 } else {
                     gameState.clicks ++;
-                    grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0.0, gameState.bordes);
+                    const idxPrev = mensaje.xi + (mensaje.yi * gameState.ancho);
+                    const celdaPrev = grid.tablero.getAt(idxPrev);
+                    if (celdaPrev && celdaPrev.setStrokeStyle) {
+                        celdaPrev.setStrokeStyle(0.0, gameState.bordes);
+                    }
                     mensaje.xi = mensaje.xf;
                     mensaje.yi = mensaje.yf;
-                    grid.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(3, gameState.bordes);
+                    const idxNew = mensaje.xf + (mensaje.yf * gameState.ancho);
+                    const celdaNew = grid.tablero.getAt(idxNew);
+                    if (celdaNew && celdaNew.setStrokeStyle) {
+                        celdaNew.setStrokeStyle(3, gameState.bordes);
+                    }
                     mensaje.xf = x;
                     mensaje.yf = y;
                     this.tile.setStrokeStyle(3, gameState.colorSelec);
@@ -135,6 +210,35 @@ class escena3 extends Phaser.Scene {
         this.crearPortadrones();
         this.crearTablero();
         this.conectarSTOMP();
+    }
+
+    limpiarBordesSeleccion() {
+        if (!this.tablero) return;
+
+        const idxIni = mensaje.xi + (mensaje.yi * gameState.ancho);
+        const idxFin = mensaje.xf + (mensaje.yf * gameState.ancho);
+
+        const celIni = this.tablero.getAt(idxIni);
+        if (celIni && celIni.setStrokeStyle) {
+            celIni.setStrokeStyle(0, gameState.bordes);
+        }
+        if (idxFin !== idxIni) {
+            const celFin = this.tablero.getAt(idxFin);
+            if (celFin && celFin.setStrokeStyle) {
+                celFin.setStrokeStyle(0, gameState.bordes);
+            }
+        }
+
+        if (gameState.droneSeleccionadoIdx !== null && gameState.droneSeleccionadoIdx !== undefined) {
+            const celDron = this.tablero.getAt(gameState.droneSeleccionadoIdx);
+            if (celDron && celDron.setStrokeStyle) {
+                celDron.setStrokeStyle(0, gameState.bordes);
+            }
+            gameState.droneSeleccionadoIdx = null;
+            gameState.droneClicksDespues = 0;
+        }
+
+        gameState.clicks = 0;
     }
 
     conectarSTOMP() {
@@ -203,12 +307,14 @@ class escena3 extends Phaser.Scene {
                 var i = 0;
                 msg.grilla.forEach((cel) => {
                     let celda = this.tablero.getAt(i);
+                    const gridY = Math.floor(i / gameState.ancho);
+                    const gridX = i % gameState.ancho;
                     if ( (gameState.equipo === "NAVAL" && cel.visionNaval) || (gameState.equipo === "AEREO" && cel.visionAereo)) {
                         celda.setFillStyle(0xffffff);
                         if (cel.naval)
-                            this.dibujarDronNaval(celda.x, celda.y);
+                            this.dibujarDronNaval(celda.x, celda.y, gridX, gridY);
                         if (cel.aereo)
-                            this.dibujarDronAereo(celda.x, celda.y);
+                            this.dibujarDronAereo(celda.x, celda.y, gridX, gridY);
                         if( (celda.x <= (gameState.portaNX+gameState.anchoPorta-1)*gameState.tamCelda && celda.y >= (gameState.portaNY-gameState.altoPorta)*gameState.tamCelda) || (celda.x >= (gameState.portaAX-gameState.anchoPorta-1)*gameState.tamCelda && celda.y <= (gameState.portaAY+gameState.altoPorta-1)*gameState.tamCelda) )  {
                                 this.forma.fillRect(celda.x + gameState.tableroX -gameState.tamCelda / 2, celda.y + gameState.tableroY -gameState.tamCelda / 2, gameState.tamCelda, gameState.tamCelda);
                         }  
@@ -459,9 +565,7 @@ class escena3 extends Phaser.Scene {
         //boton pasar turno con skin alternativa para desplegar al inicio
         pasarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if ( ! gameState.solicitandoGuardado) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                gameState.clicks = 0;
+                this.limpiarBordesSeleccion();
                 mensaje.accion = "PASAR";               
                 this.enviarMensage(mensaje); 
             }
@@ -532,11 +636,14 @@ class escena3 extends Phaser.Scene {
         });
         moverBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")  && ! gameState.solicitandoGuardado) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                gameState.clicks = 0;
-                mensaje.accion = "MOVER";               
-                this.enviarMensage(mensaje);  
+                this.limpiarBordesSeleccion();
+                mensaje.accion = "MOVER";
+                const data = { ...mensaje };
+                if (gameState.droneAccionX !== null && gameState.droneAccionY !== null) {
+                    data.xi = gameState.droneAccionX;
+                    data.yi = gameState.droneAccionY;
+                }
+                this.enviarMensage(data);  
             }
         });
 
@@ -554,11 +661,14 @@ class escena3 extends Phaser.Scene {
         });
         atacarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && !gameState.solicitandoGuardado ) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                gameState.clicks = 0;
-                mensaje.accion = "ATACAR";               
-                this.enviarMensage(mensaje); 
+                this.limpiarBordesSeleccion();
+                mensaje.accion = "ATACAR";
+                const data = { ...mensaje };
+                if (gameState.droneAccionX !== null && gameState.droneAccionY !== null) {
+                    data.xi = gameState.droneAccionX;
+                    data.yi = gameState.droneAccionY;
+                }
+                this.enviarMensage(data); 
             }
         });
 
@@ -576,11 +686,16 @@ class escena3 extends Phaser.Scene {
         });
         recargarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && ! gameState.solicitandoGuardado) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                gameState.clicks = 0;
-                mensaje.accion = "RECARGAR";               
-                this.enviarMensage(mensaje); 
+                this.limpiarBordesSeleccion();
+                mensaje.accion = "RECARGAR";
+                const data = { ...mensaje };
+                if (gameState.droneAccionX !== null && gameState.droneAccionY !== null) {
+                    data.xi = gameState.droneAccionX;
+                    data.yi = gameState.droneAccionY;
+                    data.xf = gameState.droneAccionX;
+                    data.yf = gameState.droneAccionY;
+                }
+                this.enviarMensage(data); 
             }
         });
 
@@ -595,9 +710,7 @@ class escena3 extends Phaser.Scene {
 
         //boton pasar turno con skin alternativa para desplegar al inicio
         this.desplegarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-            //this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(1, gameState.bordes);
-            gameState.clicks = 0;
+            this.limpiarBordesSeleccion();
             mensaje.accion = "DESPLEGAR";
             this.enviarMensage(mensaje);              
         });
@@ -616,7 +729,7 @@ class escena3 extends Phaser.Scene {
         });
         guardarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && ! gameState.solicitandoGuardado) {
-                gameState.clicks = 0;
+                this.limpiarBordesSeleccion();
                 mensaje.accion = "GUARDAR";               
                 this.enviarMensage(mensaje); 
                 gameState.solicitandoGuardado = true;
@@ -723,17 +836,73 @@ class escena3 extends Phaser.Scene {
         });
     }
 
-    dibujarDronNaval (x, y) {
+    dibujarDronNaval (x, y, gridX, gridY) {
         var xAbs = x + gameState.tableroX;
         var yAbs = y + gameState.tableroY;
         let dron = this.add.sprite(xAbs - 1, yAbs ,"DronN").setScale(1.5).setDepth(2);
         dron.angle = -90;
-        
-        dron.setInteractive(); 
+        dron.gridX = gridX;
+        dron.gridY = gridY;
+
+        // El sprite es más grande que 1 celda por el scale.
+        // Hitbox aprox del tamaño de 1 celda para no capturar clicks en celdas adyacentes.
+        const hitRadius = Math.max(6, Math.floor(gameState.tamCelda / 2) - 1);
+        dron.setInteractive(new Phaser.Geom.Circle(32, 32, hitRadius), Phaser.Geom.Circle.Contains);
         dron.on('pointerdown', () => {
             if(gameState.equipo === "NAVAL") {
-                mensaje.accion = "MUNICION";               
-                this.enviarMensage(mensaje); 
+                // Este dron queda seleccionado como origen para acciones
+                // (sin afectar la selección de celdas en pantalla).
+                gameState.droneAccionX = dron.gridX;
+                gameState.droneAccionY = dron.gridY;
+
+                // Al seleccionar un dron, limpiar la celda inicial actual
+                // (primera celda clickeada) si hay una selección de 2 celdas,
+                // conservando la final.
+                const idxIniSel = mensaje.xi + (mensaje.yi * gameState.ancho);
+                const idxFinSel = mensaje.xf + (mensaje.yf * gameState.ancho);
+                if (idxIniSel !== idxFinSel) {
+                    const celIniSel = this.tablero.getAt(idxIniSel);
+                    if (celIniSel && celIniSel.setStrokeStyle) {
+                        celIniSel.setStrokeStyle(0, gameState.bordes);
+                    }
+                }
+
+                // Limpiar selección de dron anterior (si hubiera) pero
+                // sin tocar las celdas de origen/final ya seleccionadas.
+                if (gameState.droneSeleccionadoIdx !== null && gameState.droneSeleccionadoIdx !== undefined) {
+                    const celPrevDron = this.tablero.getAt(gameState.droneSeleccionadoIdx);
+                    if (celPrevDron && celPrevDron.setStrokeStyle) {
+                        celPrevDron.setStrokeStyle(0, gameState.bordes);
+                    }
+                }
+
+                const idxDron = dron.gridX + (dron.gridY * gameState.ancho);
+                const celDron = this.tablero.getAt(idxDron);
+                if (celDron && celDron.setStrokeStyle) {
+                    celDron.setStrokeStyle(3, gameState.colorSelec);
+                }
+
+                gameState.droneSeleccionadoIdx = idxDron;
+                gameState.droneClicksDespues = 0;
+
+                // Enviar consulta de munición usando temporalmente
+                // la posición del dron, sin alterar la selección actual.
+                const oldXi = mensaje.xi;
+                const oldYi = mensaje.yi;
+                const oldXf = mensaje.xf;
+                const oldYf = mensaje.yf;
+
+                mensaje.xi = dron.gridX;
+                mensaje.yi = dron.gridY;
+                mensaje.xf = dron.gridX;
+                mensaje.yf = dron.gridY;
+                mensaje.accion = "MUNICION";
+                this.enviarMensage(mensaje);
+
+                mensaje.xi = oldXi;
+                mensaje.yi = oldYi;
+                mensaje.xf = oldXf;
+                mensaje.yf = oldYf;
             }
         });
         
@@ -742,17 +911,73 @@ class escena3 extends Phaser.Scene {
         gameState.drones.push(dron);
     }
 
-    dibujarDronAereo (x, y) {
+    dibujarDronAereo (x, y, gridX, gridY) {
         var xAbs = x + gameState.tableroX;
         var yAbs = y + gameState.tableroY;
         let dron = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
         dron.angle = 90;
+        dron.gridX = gridX;
+        dron.gridY = gridY;
 
-        dron.setInteractive(); 
+        // El sprite es más grande que 1 celda por el scale.
+        // Hitbox aprox del tamaño de 1 celda para no capturar clicks en celdas adyacentes.
+        const hitRadius = Math.max(6, Math.floor(gameState.tamCelda / 2) - 1);
+        dron.setInteractive(new Phaser.Geom.Circle(32, 32, hitRadius), Phaser.Geom.Circle.Contains);
         dron.on('pointerdown', () => {
             if(gameState.equipo === "AEREO") {
-                mensaje.accion = "MUNICION";               
-                this.enviarMensage(mensaje); 
+                // Este dron queda seleccionado como origen para acciones
+                // (sin afectar la selección de celdas en pantalla).
+                gameState.droneAccionX = dron.gridX;
+                gameState.droneAccionY = dron.gridY;
+
+                // Al seleccionar un dron, limpiar la celda inicial actual
+                // (primera celda clickeada) si hay una selección de 2 celdas,
+                // conservando la final.
+                const idxIniSel = mensaje.xi + (mensaje.yi * gameState.ancho);
+                const idxFinSel = mensaje.xf + (mensaje.yf * gameState.ancho);
+                if (idxIniSel !== idxFinSel) {
+                    const celIniSel = this.tablero.getAt(idxIniSel);
+                    if (celIniSel && celIniSel.setStrokeStyle) {
+                        celIniSel.setStrokeStyle(0, gameState.bordes);
+                    }
+                }
+
+                // Limpiar selección de dron anterior (si hubiera) pero
+                // sin tocar las celdas de origen/final ya seleccionadas.
+                if (gameState.droneSeleccionadoIdx !== null && gameState.droneSeleccionadoIdx !== undefined) {
+                    const celPrevDron = this.tablero.getAt(gameState.droneSeleccionadoIdx);
+                    if (celPrevDron && celPrevDron.setStrokeStyle) {
+                        celPrevDron.setStrokeStyle(0, gameState.bordes);
+                    }
+                }
+
+                const idxDron = dron.gridX + (dron.gridY * gameState.ancho);
+                const celDron = this.tablero.getAt(idxDron);
+                if (celDron && celDron.setStrokeStyle) {
+                    celDron.setStrokeStyle(3, gameState.colorSelec);
+                }
+
+                gameState.droneSeleccionadoIdx = idxDron;
+                gameState.droneClicksDespues = 0;
+
+                // Enviar consulta de munición usando temporalmente
+                // la posición del dron, sin alterar la selección actual.
+                const oldXi = mensaje.xi;
+                const oldYi = mensaje.yi;
+                const oldXf = mensaje.xf;
+                const oldYf = mensaje.yf;
+
+                mensaje.xi = dron.gridX;
+                mensaje.yi = dron.gridY;
+                mensaje.xf = dron.gridX;
+                mensaje.yf = dron.gridY;
+                mensaje.accion = "MUNICION";
+                this.enviarMensage(mensaje);
+
+                mensaje.xi = oldXi;
+                mensaje.yi = oldYi;
+                mensaje.xf = oldXf;
+                mensaje.yf = oldYf;
             }
         });
 
@@ -832,6 +1057,10 @@ class escena3 extends Phaser.Scene {
         gameState.escala = 22.36 ;
         gameState.tamCelda = 23 ;
         gameState.solicitandoGuardado = false ;
+        gameState.droneSeleccionadoIdx = null ;
+        gameState.droneClicksDespues = 0 ;
+        gameState.droneAccionX = null ;
+        gameState.droneAccionY = null ;
         mensaje.nombre = "" ;
         mensaje.accion = "" ;
         mensaje.xi = 30 ;

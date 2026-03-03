@@ -396,7 +396,7 @@ public class Partida implements Serializable {
             emitirMensaje("Recarga exitosa",4);
             terminarTurno();
         } else {
-            System.out.println("Error: recarga no vilida");
+            System.out.println("Error: recarga no valida");
             emitirMensaje("Error: recarga no valida",3);
         }
     }
@@ -406,9 +406,8 @@ public class Partida implements Serializable {
         Celda celdaOrigen = tablero.getCelda(posParam);
         System.out.println(equipoParam);
         Dron dron = celdaOrigen.getDronEquipo(equipoParam);
-        System.out.println(dron.getMunicion());
         int municion = dron.getMunicion();
-        System.out.println(municion);
+        System.out.println("Municion: "+municion);
         return municion;
     }
     
