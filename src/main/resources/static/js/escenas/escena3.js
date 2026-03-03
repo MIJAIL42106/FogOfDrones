@@ -389,9 +389,9 @@ class escena3 extends Phaser.Scene {
                     if ( (gameState.equipo === "NAVAL" && cel.visionNaval) || (gameState.equipo === "AEREO" && cel.visionAereo)) {
                         celda.setFillStyle(0xffffff);
                         if (cel.naval)
-                            this.dibujarDronNaval(celda.x, celda.y, gridX, gridY);
+                            this.dibujarDronNaval(celda.x, celda.y, gridX, gridY, cel);
                         if (cel.aereo)
-                            this.dibujarDronAereo(celda.x, celda.y, gridX, gridY);
+                            this.dibujarDronAereo(celda.x, celda.y, gridX, gridY, cel);
                         if( (celda.x <= (gameState.portaNX+gameState.anchoPorta-1)*gameState.tamCelda && celda.y >= (gameState.portaNY-gameState.altoPorta)*gameState.tamCelda) || (celda.x >= (gameState.portaAX-gameState.anchoPorta-1)*gameState.tamCelda && celda.y <= (gameState.portaAY+gameState.altoPorta-1)*gameState.tamCelda) )  {
                                 this.forma.fillRect(celda.x + gameState.tableroX -gameState.tamCelda / 2, celda.y + gameState.tableroY -gameState.tamCelda / 2, gameState.tamCelda, gameState.tamCelda);
                         }  
@@ -913,7 +913,7 @@ class escena3 extends Phaser.Scene {
         });
     }
 
-    dibujarDronNaval (x, y, gridX, gridY) {
+    dibujarDronNaval (x, y, gridX, gridY, celInfo) {
         var xAbs = x + gameState.tableroX;
         var yAbs = y + gameState.tableroY;
         let dron = this.add.sprite(xAbs - 1, yAbs ,"DronN").setScale(1.5).setDepth(2);
@@ -921,12 +921,19 @@ class escena3 extends Phaser.Scene {
         dron.gridX = gridX;
         dron.gridY = gridY;
 
+        const haySuperposicion = !!(celInfo && celInfo.naval && celInfo.aereo);
+        const esAliado = gameState.equipo === "NAVAL";
+        // Si hay ambos drones en la misma celda, desactivar interactividad del enemigo
+        // para que el click no bloquee la selección del aliado.
+        const puedeInteractuar = esAliado || !haySuperposicion;
+
         // El sprite es más grande que 1 celda por el scale.
         // Hitbox aprox del tamaño de 1 celda para no capturar clicks en celdas adyacentes.
         const hitRadius = Math.max(6, Math.floor(gameState.tamCelda / 2) - 1);
-        dron.setInteractive(new Phaser.Geom.Circle(32, 32, hitRadius), Phaser.Geom.Circle.Contains);
-        dron.on('pointerdown', () => {
-            if(gameState.equipo === "NAVAL") {
+        if (puedeInteractuar) {
+            dron.setInteractive(new Phaser.Geom.Circle(32, 32, hitRadius), Phaser.Geom.Circle.Contains);
+            dron.on('pointerdown', () => {
+                if(gameState.equipo === "NAVAL") {
                 // Este dron queda seleccionado como origen para acciones
                 // (sin afectar la selección de celdas en pantalla).
                 gameState.droneAccionX = dron.gridX;
@@ -959,7 +966,7 @@ class escena3 extends Phaser.Scene {
                 mensaje.accion = "MUNICION";
                 this.enviarMensage(mensaje);
                 mensaje.accion = oldAccion;
-            } else {
+                } else {
                 // Si el jugador no es NAVAL, el click en este sprite (dron naval) debe
                 // comportarse como click en la celda subyacente (por ejemplo para seleccionar
                 // un objetivo enemigo para ATACAR).
@@ -974,15 +981,16 @@ class escena3 extends Phaser.Scene {
                 if (this.hayDronAliadoEn(dron.gridX, dron.gridY)) {
                     this.enviarMunicionPara(dron.gridX, dron.gridY);
                 }
-            }
-        });
+                }
+            });
+        }
         
         dron.play('idleN');
         
         gameState.drones.push(dron);
     }
 
-    dibujarDronAereo (x, y, gridX, gridY) {
+    dibujarDronAereo (x, y, gridX, gridY, celInfo) {
         var xAbs = x + gameState.tableroX;
         var yAbs = y + gameState.tableroY;
         let dron = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
@@ -990,12 +998,19 @@ class escena3 extends Phaser.Scene {
         dron.gridX = gridX;
         dron.gridY = gridY;
 
+        const haySuperposicion = !!(celInfo && celInfo.naval && celInfo.aereo);
+        const esAliado = gameState.equipo === "AEREO";
+        // Si hay ambos drones en la misma celda, desactivar interactividad del enemigo
+        // para que el click no bloquee la selección del aliado.
+        const puedeInteractuar = esAliado || !haySuperposicion;
+
         // El sprite es más grande que 1 celda por el scale.
         // Hitbox aprox del tamaño de 1 celda para no capturar clicks en celdas adyacentes.
         const hitRadius = Math.max(6, Math.floor(gameState.tamCelda / 2) - 1);
-        dron.setInteractive(new Phaser.Geom.Circle(32, 32, hitRadius), Phaser.Geom.Circle.Contains);
-        dron.on('pointerdown', () => {
-            if(gameState.equipo === "AEREO") {
+        if (puedeInteractuar) {
+            dron.setInteractive(new Phaser.Geom.Circle(32, 32, hitRadius), Phaser.Geom.Circle.Contains);
+            dron.on('pointerdown', () => {
+                if(gameState.equipo === "AEREO") {
                 // Este dron queda seleccionado como origen para acciones
                 // (sin afectar la selección de celdas en pantalla).
                 gameState.droneAccionX = dron.gridX;
@@ -1028,7 +1043,7 @@ class escena3 extends Phaser.Scene {
                 mensaje.accion = "MUNICION";
                 this.enviarMensage(mensaje);
                 mensaje.accion = oldAccion;
-            } else {
+                } else {
                 // Si el jugador no es AEREO, el click en este sprite (dron aéreo) debe
                 // comportarse como click en la celda subyacente (por ejemplo para seleccionar
                 // un objetivo enemigo para ATACAR).
@@ -1043,8 +1058,9 @@ class escena3 extends Phaser.Scene {
                 if (this.hayDronAliadoEn(dron.gridX, dron.gridY)) {
                     this.enviarMunicionPara(dron.gridX, dron.gridY);
                 }
-            }
-        });
+                }
+            });
+        }
 
         dron.play('idleA');
         gameState.drones.push(dron);
