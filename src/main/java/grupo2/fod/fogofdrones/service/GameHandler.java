@@ -2,6 +2,7 @@ package grupo2.fod.fogofdrones.service;
 
 // ver como adaptar a servicios usando varias partidas
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -535,9 +536,11 @@ public class GameHandler {
 	}
 
 	
-	// Estado para carga de partida
-	private String jugadorCarga1 = null;
-	private String jugadorCarga2 = null;
+	// Estado para carga de partida guardada (cola por pareja)
+	// clave = "{naval}-{aereo}", valor = jugador que está esperando
+	private final Map<String, String> cargaPendientePorClave = new ConcurrentHashMap<>();
+	// índice inverso para cancelar rápido
+	private final Map<String, String> clavePendientePorJugador = new ConcurrentHashMap<>();
 
 	/**
 	 * Permite cancelar la espera para cargar partida guardada.
@@ -549,12 +552,10 @@ public class GameHandler {
 			if (nombre == null || nombre.trim().isEmpty()) {
 				return;
 			}
-			if (nombre.equals(jugadorCarga1)) {
-				LOGGER.info("Cancelando espera de carga para '{}' (jugadorCarga1)", nombre);
-				jugadorCarga1 = null;
-			} else if (nombre.equals(jugadorCarga2)) {
-				LOGGER.info("Cancelando espera de carga para '{}' (jugadorCarga2)", nombre);
-				jugadorCarga2 = null;
+			String clave = clavePendientePorJugador.remove(nombre);
+			if (clave != null) {
+				LOGGER.info("Cancelando espera de carga para '{}' (clave={})", nombre, clave);
+				cargaPendientePorClave.remove(clave, nombre);
 			}
 		} catch (Exception e) {
 			LOGGER.error("Error procesando cancelar-cargar", e);
@@ -566,6 +567,16 @@ public class GameHandler {
 		try {
 			String nombre = (String) data.get("nombre");
 			LOGGER.info("Cargar solicitado por '{}'", nombre);
+
+			if (nombre == null || nombre.trim().isEmpty()) {
+				enviarErrorLogin("", "Nombre inválido");
+				return;
+			}
+
+			if (servicios.existePartida(nombre)) {
+				enviarErrorLogin(nombre, "El jugador ya está en una partida activa");
+				return;
+			}
 
 			// Verifica si el jugador tiene partida guardada
 			if (!servicios.existePartidaGuardada(nombre)) {
@@ -584,25 +595,41 @@ public class GameHandler {
 				return;
 			}
 
-			if (jugadorCarga1 == null) {
-				jugadorCarga1 = nombre;
-				LOGGER.info("Jugador '{}' esperando para cargar partida", nombre);
-				// Espera al segundo jugador
-			} else if (jugadorCarga2 == null && !jugadorCarga1.equals(nombre)) {
-				jugadorCarga2 = nombre;
-				LOGGER.info("Jugador '{}' también listo para cargar partida", nombre);
+			// Determinar la pareja correcta asociada a la partida guardada de este jugador.
+			String[] pareja = servicios.obtenerParejaPartidaGuardada(nombre);
+			if (pareja == null || pareja.length != 2) {
+				enviarErrorLogin(nombre, "No se pudo determinar la pareja de la partida guardada");
+				return;
+			}
+			String jugadorNaval = pareja[0];
+			String jugadorAereo = pareja[1];
+			String clave = servicios.generarClave(jugadorNaval, jugadorAereo);
 
-				// Recupera la partida guardada
-				Partida partidaCargada = servicios.cargarPartida(jugadorCarga1, jugadorCarga2);
-				
+			// Cola por clave: el primer jugador espera; el segundo (de la misma pareja) dispara la carga.
+			String esperando = cargaPendientePorClave.putIfAbsent(clave, nombre);
+			if (esperando == null) {
+				clavePendientePorJugador.put(nombre, clave);
+				LOGGER.info("Jugador '{}' esperando para cargar partida guardada (clave={})", nombre, clave);
+				return;
+			}
+			if (esperando.equals(nombre)) {
+				// ya estaba esperando
+				return;
+			}
 
-				if (partidaCargada == null) {
-					LOGGER.error("ERROR: No se pudo cargar la partida para {} y {}", jugadorCarga1, jugadorCarga2);
-					enviarErrorLogin(nombre, "Error al cargar la partida");
-					jugadorCarga1 = null;
-					jugadorCarga2 = null;
-					return;
-				}
+			// Segundo jugador llegó para esta clave -> limpiar cola y cargar.
+			cargaPendientePorClave.remove(clave);
+			clavePendientePorJugador.remove(esperando);
+			clavePendientePorJugador.remove(nombre);
+			LOGGER.info("Pareja completa para cargar (clave={}) -> {} y {}", clave, esperando, nombre);
+
+			Partida partidaCargada = servicios.cargarPartida(jugadorNaval, jugadorAereo);
+			if (partidaCargada == null) {
+				LOGGER.error("ERROR: No se pudo cargar la partida para clave {} ({} vs {})", clave, jugadorNaval, jugadorAereo);
+				enviarErrorLogin(esperando, "Error al cargar la partida");
+				enviarErrorLogin(nombre, "Error al cargar la partida");
+				return;
+			}
 
 				partidaCargada.actualizarTablero();
 				partidaCargada.actualizarVision();
@@ -631,11 +658,6 @@ public class GameHandler {
 					.build();
 				String respuestaJugador2 = mapper.writeValueAsString(mensajeJugador2);
 				messagingTemplate.convertAndSend("/topic/cargar-lista", respuestaJugador2);
-
-				// Limpia estado de espera
-				jugadorCarga1 = null;
-				jugadorCarga2 = null;
-
 				System.out.println(partidaCargada.getJugadorNaval().getNombre() + " - " + partidaCargada.getJugadorAereo().getNombre());
 
 				// Nota: El estado inicial será enviado cuando los clientes se suscriban 
@@ -657,12 +679,6 @@ public class GameHandler {
 				});
 				String estadoInicial = mensajeRetorno(partidaCargada);
 				messagingTemplate.convertAndSend(canalInicio, estadoInicial);
-			} else {
-				jugadorCarga1 = null;
-				jugadorCarga2 = null;
-				enviarErrorLogin(nombre, "No se pudo cargar la partida. Intenta nuevamente.");
-				LOGGER.warn("Carga no asignada para '{}'. Estado actual jugadorCarga1='{}', jugadorCarga2='{}'", nombre, jugadorCarga1, jugadorCarga2);
-			}
 		} catch (Exception e) {
 			LOGGER.error("Error al cargar partida '{}'", data.get("nombre"), e);
 			enviarErrorLogin((String) data.get("nombre"), "Error interno al cargar partida");

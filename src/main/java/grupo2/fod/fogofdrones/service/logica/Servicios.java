@@ -160,6 +160,18 @@ public class Servicios{
         return repoPartidas.findByJugador(nombreJugador).isPresent();
     }
 
+    /**
+     * Devuelve la pareja (jugadorNaval, jugadorAereo) asociada a la partida guardada
+     * donde participa {@code nombreJugador}. Si no existe, retorna null.
+     */
+    public String[] obtenerParejaPartidaGuardada(String nombreJugador) {
+        Persistencia persistencia = repoPartidas.findByJugador(nombreJugador).orElse(null);
+        if (persistencia == null) {
+            return null;
+        }
+        return new String[] { persistencia.getJugadorNaval(), persistencia.getJugadorAereo() };
+    }
+
     // Carga la partida guardada entre dos jugadores y la pone en memoria
     public Partida cargarPartida(String nombre1, String nombre2) {
         Persistencia persistencia = repoPartidas.findByJugador(nombre1).orElse(null);
