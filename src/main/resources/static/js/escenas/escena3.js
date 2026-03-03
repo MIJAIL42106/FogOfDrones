@@ -359,10 +359,19 @@ class escena3 extends Phaser.Scene {
                 gameState.ultimaGrilla = msg.grilla;
                 // actualizado de fase de partida
                 gameState.fase = msg.fasePartida.toString();
-                if (msg.fasePartida.toString() === "JUGANDO") {
-                        this.zonaDesp.destroy();
-                        this.botonPasar(this.desplegarBtn);
-                } /*
+                // Al iniciar juego o cargar una partida ya iniciada, el botón debe ser "Pasar"
+                // (no "Desplegar"). Esto aplica a cualquier fase distinta de DESPLIEGUE.
+                if (gameState.fase !== "DESPLIEGUE") {
+                    if (!this.botonPasarActivo) {
+                        if (this.zonaDesp && this.zonaDesp.destroy) {
+                            this.zonaDesp.destroy();
+                            this.zonaDesp = null;
+                        }
+                        this.desplegarBtn = this.botonPasar(this.desplegarBtn);
+                        this.botonPasarActivo = true;
+                    }
+                }
+                /*
                 if (gameState.fase !== msg.fasePartida.toString()) {
                     // si pasa a jugando se eliminan los elementos de despliegue iniciales
                     // se podria mostrar mensaje o algo
@@ -684,6 +693,8 @@ class escena3 extends Phaser.Scene {
         var recargarBtn = this.add.image(pos,960,"Recargar").setDepth(0).setInteractive();
         pos += tamBtn + sep;
         this.desplegarBtn = this.add.image(pos,960,"Desplegar").setDepth(0).setInteractive();
+        // Flag para no recrear el botón "Pasar" en cada actualización de estado.
+        this.botonPasarActivo = false;
         pos += tamBtn + sep *1.5;
         var guardarBtn = this.add.image(pos,540,"Guardar").setDepth(0).setInteractive();
         /*
