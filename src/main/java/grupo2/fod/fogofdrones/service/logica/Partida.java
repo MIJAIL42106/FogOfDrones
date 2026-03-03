@@ -159,12 +159,14 @@ public class Partida implements Serializable {
                         //System.out.println("Error: el lugar a donde quiere mover esta fuera de alcance");
                         emitirMensaje("Destino fuera de alcance para este dron",3);
                     } else {
+                        Celda celdaDestino = tablero.getCelda(destinoParam);
                         if(esZonaPortaDrones(destinoParam, turno)) {
-                            puede = false;
-                            //System.out.println("Error: no puedes moverte subre tu propio porta drones");
-                            emitirMensaje("No puedes moverte sobre tu propio PortaDrones",3);
-                        } else {
-                            Celda celdaDestino = tablero.getCelda(destinoParam);    // verifica si en el destino hay un dron aliado
+                            if(!celdaDestino.tieneDronEquipo(turno.siguienteEquipo())) {   // verifica que en el destino no haya un dron enemigo
+                                puede = false;
+                                //System.out.println("Error: no puedes moverte subre tu propio porta drones");
+                                emitirMensaje("No puedes moverte sobre tu propio PortaDrones",3);
+                            }
+                        } else {    // verifica si en el destino hay un dron aliado
                             if (celdaDestino.tieneDronEquipo(turno)) {
                                 puede = false;
                                 //System.out.println("Error: en esa celda ya hay un dron aliado");
@@ -223,12 +225,14 @@ public class Partida implements Serializable {
                         //System.out.println("Error: el lugar al que quiere disparar esta fuera de alcance");
                         emitirMensaje("Destino de ataque fuera de alcance",3);
                     } else {
+                        Celda celdaDestino = tablero.getCelda(destinoParam);
                         if(esZonaPortaDrones(destinoParam, turno)) {
-                            puede = false;
-                            //System.out.println("Error: no puedes disparar a tu propio porta drones");
-                            emitirMensaje("No puedes atacar a tu propio PortaDrones",3);
+                            if(!celdaDestino.tieneDronEquipo(turno.siguienteEquipo())) {   // verifica que en el destino no haya un dron enemigo
+                                puede = false;
+                                //System.out.println("Error: no puedes disparar a tu propio porta drones");
+                                emitirMensaje("No puedes atacar a tu propio PortaDrones",3);
+                            }
                         } else {
-                            Celda celdaDestino = tablero.getCelda(destinoParam);
                             if(celdaDestino.getDronEquipo(turno) != null && !origenParam.mismaPosicion(destinoParam)) {
                                 puede = false;
                                 //System.out.println("Error: no puedes disparar a una unidad aliada");
