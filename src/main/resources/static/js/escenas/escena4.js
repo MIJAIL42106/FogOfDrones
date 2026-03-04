@@ -1116,6 +1116,9 @@ class escena3 extends Phaser.Scene {
     }
 
     shutdown() {
+        // Guardar el canal antes de limpiar el gameState; si no, no podremos desuscribir.
+        const canalAnterior = gameState.canalPartida;
+
         if (this.beforeUnloadHandler) {
             window.removeEventListener('beforeunload', this.beforeUnloadHandler);
             this.beforeUnloadHandler = null;
@@ -1191,9 +1194,11 @@ class escena3 extends Phaser.Scene {
         mensaje.xf = 30 ;
         mensaje.yf = 15 ;
         //this.scene.remove('partida');
+        // Limpieza de suscripciones: evitar que queden callbacks viejos activos al volver al menú.
         window.conexionWS.desuscribir('/topic/accion');
-        if (gameState.canalPartida) {
-            window.conexionWS.desuscribir(gameState.canalPartida);
+        window.conexionWS.desuscribir('/topic/game');
+        if (canalAnterior) {
+            window.conexionWS.desuscribir(canalAnterior);
         }
         // No detenemos ni cambiamos la escena aquí; eso se hace
         // explícitamente en los manejadores de mensajes (FINALIZACION/GUARDADO)

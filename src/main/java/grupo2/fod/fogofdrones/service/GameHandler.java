@@ -147,6 +147,31 @@ public class GameHandler {
 						String canal = getCanalPartida(p);
 						messagingTemplate.convertAndSend(canal, respuesta);
 						LOGGER.info("Estado actualizado enviado para jugador '{}'", nombre);
+
+						// Si la partida ya terminó (por abandono u otra causa) y este jugador se conectó tarde,
+						// reenviar FINALIZACION SOLO si fue por abandono (disconnect) recientemente.
+						if (p.getFasePartida() == FasePartida.TERMINADO) {
+							try {
+								String nombreNaval = p.getJugadorNaval().getNombre();
+								String nombreAereo = p.getJugadorAereo().getNombre();
+
+								boolean reenviar = servicios.consumirFinalizacionPendiente(nombreNaval, nombreAereo, 30_000);
+								if (reenviar) {
+									Equipo ganador = p.getEquipoGanador();
+									VoMensaje finMsg = VoMensaje.builder()
+										.tipoMensaje(5)
+										.evento("La partida ha terminado por abandono")
+										.nombre(ganador != null ? ganador.toString() : "Empate")
+										.fasePartida(FasePartida.TERMINADO)
+										.build();
+									String finRespuesta = mapper.writeValueAsString(finMsg);
+									messagingTemplate.convertAndSend(canal, finRespuesta);
+									servicios.finalizarPartida(nombreNaval, nombreAereo);
+								}
+							} catch (Exception ex) {
+								LOGGER.error("Error reenviando FINALIZACION tras ACTUALIZAR (jugador='{}')", nombre, ex);
+							}
+						}
 					} else {
 						LOGGER.warn("ACTUALIZAR: No se encontró partida para jugador '{}'", nombre);
 					}

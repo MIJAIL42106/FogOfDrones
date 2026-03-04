@@ -1,5 +1,12 @@
 package grupo2.fod.fogofdrones.service;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -26,6 +33,17 @@ public class WebSocketDisconnectListener {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    // Limpieza diferida para evitar partidas colgadas si ambos clientes cierran.
+    // También da un margen para que el rival termine de suscribirse y reciba FINALIZACION.
+    private static final ScheduledExecutorService CLEANUP_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "fogofdrones-disconnect-cleanup");
+        t.setDaemon(true);
+        return t;
+    });
+
+    // Pendientes de abandono por jugador (para dar tiempo a reconectar en refresh)
+    private final ConcurrentMap<String, ScheduledFuture<?>> abandonoPendientePorJugador = new ConcurrentHashMap<>();
+
     public WebSocketDisconnectListener(
             SesionJugadores sesionJugadores,
             Servicios servicios,
@@ -40,48 +58,72 @@ public class WebSocketDisconnectListener {
         StompHeaderAccessor sha = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = sha.getSessionId();
 
-        String nombre = sesionJugadores.obtenerJugador(sessionId);
-        sesionJugadores.eliminarPorSession(sessionId);
+        String nombre = sesionJugadores.eliminarPorSession(sessionId);
 
         if (nombre == null || nombre.isBlank()) {
             return;
         }
 
-        Partida p = servicios.getPartidaJugador(nombre);
-        if (p == null) {
-            return;
+
+        // Gracia: si es un refresh, el jugador suele reconectar enseguida.
+        // Programamos el abandono y lo cancelamos si el jugador vuelve a tener sesión activa.
+        ScheduledFuture<?> anterior = abandonoPendientePorJugador.remove(nombre);
+        if (anterior != null) {
+            anterior.cancel(false);
         }
 
-        if (p.getFasePartida() == FasePartida.TERMINADO) {
-            return;
-        }
+        ScheduledFuture<?> futuro = CLEANUP_EXECUTOR.schedule(() -> {
+            abandonoPendientePorJugador.remove(nombre);
 
-        String nombreNaval = p.getJugadorNaval().getNombre();
-        String nombreAereo = p.getJugadorAereo().getNombre();
+            // Si el jugador ya reconectó, no considerar abandono.
+            if (sesionJugadores.tieneSesionActiva(nombre)) {
+                return;
+            }
 
-        Equipo ganador = nombre.equals(nombreNaval) ? Equipo.AEREO : Equipo.NAVAL;
-        p.finalizarPorAbandono(ganador);
+            Partida p = servicios.getPartidaJugador(nombre);
+            if (p == null) {
+                return;
+            }
+            if (p.getFasePartida() == FasePartida.TERMINADO) {
+                return;
+            }
 
-        String canal = "/topic/" + nombreNaval + "-" + nombreAereo;
+            String nombreNaval = p.getJugadorNaval().getNombre();
+            String nombreAereo = p.getJugadorAereo().getNombre();
 
-        try {
-            VoMensaje finMsg = VoMensaje.builder()
-                    .tipoMensaje(5)
-                    .evento("La partida ha terminado por abandono")
-                    .nombre(ganador.toString())
-                    .fasePartida(FasePartida.TERMINADO)
-                    .build();
-            messagingTemplate.convertAndSend(canal, mapper.writeValueAsString(finMsg));
-        } catch (Exception ex) {
-            LOGGER.error("Error enviando finalización por abandono (canal={})", canal, ex);
-        }
+            Equipo ganador = nombre.equals(nombreNaval) ? Equipo.AEREO : Equipo.NAVAL;
+            p.finalizarPorAbandono(ganador);
 
-        try {
-            servicios.finalizarPartida(nombreNaval, nombreAereo);
-        } catch (Exception ex) {
-            LOGGER.error("Error finalizando partida por abandono {} vs {}", nombreNaval, nombreAereo, ex);
-        }
+            // Marcar finalización por abandono para re-enviar FINALIZACION si un cliente llega tarde.
+            servicios.marcarFinalizacionPendiente(nombreNaval, nombreAereo);
 
-        LOGGER.info("Partida finalizada por abandono. Desconectado='{}', ganador={}", nombre, ganador);
+            String canal = "/topic/" + nombreNaval + "-" + nombreAereo;
+
+            try {
+                VoMensaje finMsg = VoMensaje.builder()
+                        .tipoMensaje(5)
+                        .evento("La partida ha terminado por abandono")
+                        .nombre(ganador.toString())
+                        .fasePartida(FasePartida.TERMINADO)
+                        .build();
+                messagingTemplate.convertAndSend(canal, mapper.writeValueAsString(finMsg));
+            } catch (Exception ex) {
+                LOGGER.error("Error enviando finalización por abandono (canal={})", canal, ex);
+            }
+
+            // No finalizar y eliminar inmediatamente: el rival puede aún no haberse suscrito.
+            // Se deja la partida en estado TERMINADO y se limpia/puntúa luego (o antes si llega ACTUALIZAR).
+            CLEANUP_EXECUTOR.schedule(() -> {
+                try {
+                    servicios.finalizarPartida(nombreNaval, nombreAereo);
+                } catch (Exception ex) {
+                    LOGGER.error("Error en limpieza diferida de partida por abandono {} vs {}", nombreNaval, nombreAereo, ex);
+                }
+            }, 15, TimeUnit.SECONDS);
+
+            LOGGER.info("Partida finalizada por abandono (con gracia). Desconectado='{}', ganador={}", nombre, ganador);
+        }, 3, TimeUnit.SECONDS);
+
+        abandonoPendientePorJugador.put(nombre, futuro);
     }
 }

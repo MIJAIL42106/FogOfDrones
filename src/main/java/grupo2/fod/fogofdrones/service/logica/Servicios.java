@@ -25,9 +25,39 @@ public class Servicios{
     // en handler mandar a esta conexion tal mensaje
     private Map<String,Partida> partidas = new ConcurrentHashMap<>();
 
+    // Marca partidas terminadas por abandono (disconnect) para poder re-enviar FINALIZACION
+    // cuando un cliente se conecta tarde y pide ACTUALIZAR.
+    // clave = "{naval}-{aereo}", valor = timestamp (ms)
+    private final Map<String, Long> finalizacionPendientePorClave = new ConcurrentHashMap<>();
+
+    public void marcarFinalizacionPendiente(String jugadorNaval, String jugadorAereo) {
+        String clave = generarClave(jugadorNaval, jugadorAereo);
+        finalizacionPendientePorClave.put(clave, System.currentTimeMillis());
+    }
+
+    /**
+     * Consume la marca de finalización pendiente si existe y es reciente.
+     * Evita disparar FINALIZACION por error en partidas cargadas/antiguas.
+     */
+    public boolean consumirFinalizacionPendiente(String jugadorNaval, String jugadorAereo, long maxAgeMs) {
+        String clave = generarClave(jugadorNaval, jugadorAereo);
+        Long ts = finalizacionPendientePorClave.get(clave);
+        if (ts == null) {
+            return false;
+        }
+        long age = System.currentTimeMillis() - ts;
+        if (age > maxAgeMs) {
+            finalizacionPendientePorClave.remove(clave, ts);
+            return false;
+        }
+        return finalizacionPendientePorClave.remove(clave, ts);
+    }
+
     public void crearPartida(String jugador1, String jugador2) {
         
         String clave = generarClave(jugador1, jugador2);
+        // Si quedó una finalización pendiente de una sesión anterior, no debe afectar una nueva partida.
+        finalizacionPendientePorClave.remove(clave);
         if (partidas.containsKey(clave)) {        // ya existe una partidad con esos jugadores
             System.out.println("Error: ya existe una partida con esos jugadores");
         } else {
@@ -87,7 +117,10 @@ public class Servicios{
 
     public void finalizarPartida(String nombre1, String nombre2) {
         String clave = generarClave(nombre1, nombre2);
-        Partida partida = partidas.get(clave);
+        finalizacionPendientePorClave.remove(clave);
+        // Remover de forma atómica para que la finalización sea idempotente
+        // (evita doble puntaje si dos eventos disparan finalizarPartida concurrentemente).
+        Partida partida = partidas.remove(clave);
         if (partida == null) {
             return;
         }
@@ -113,7 +146,6 @@ public class Servicios{
         }
         repo.save(partida.getJugadorNaval());
         repo.save(partida.getJugadorAereo());
-        eliminarPartida(nombre1, nombre2);
     }
 
     public boolean guardarPartida(String nombre1, String nombre2) {
@@ -202,6 +234,9 @@ public class Servicios{
             String jugadorA = partida.getJugadorAereo().getNombre();
             String jugadorN = partida.getJugadorNaval().getNombre();
             String clave = generarClave(jugadorN, jugadorA);
+
+            // No heredar finalizaciones pendientes de sesiones anteriores.
+            finalizacionPendientePorClave.remove(clave);
             partidas.put(clave, partida);
             repoPartidas.delete(persistencia);
             
