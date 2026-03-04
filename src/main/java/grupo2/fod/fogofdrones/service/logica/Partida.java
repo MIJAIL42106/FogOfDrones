@@ -404,9 +404,12 @@ public class Partida implements Serializable {
     public int obtenerMunicion(Posicion posParam, Equipo equipoParam) {
         System.out.println(posParam.getX() +" - "+ posParam.getY());
         Celda celdaOrigen = tablero.getCelda(posParam);
+
         System.out.println(equipoParam);
+        System.out.println(celdaOrigen.tieneDronEquipo(equipoParam));
         Dron dron = celdaOrigen.getDronEquipo(equipoParam);
         System.out.println(dron.getMunicion());
+        
         int municion = dron.getMunicion();
         System.out.println(municion);
         return municion;

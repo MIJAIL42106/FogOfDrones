@@ -324,16 +324,16 @@ public class GameHandler {
 		Posicion pos = new Posicion(x, y);
 		Equipo equipo = null;
 		int muniTotal = 0;
-		if (nombre.equals(p.getJugadorAereo())){
+		if (nombre.equals(p.getJugadorAereo().getNombre())){
 			equipo = Equipo.AEREO;
 			muniTotal = 1;
 		} else {
 			equipo = Equipo.NAVAL;
 			muniTotal = 2;
 		}
-		//System.out.println(nombre +" - "+equipo+" - "+muniTotal);
+		System.out.println(nombre +" - "+equipo+" - "+muniTotal);
 		int municion = p.obtenerMunicion(pos, equipo);
-		//System.out.println( municion + "/" + muniTotal);
+		System.out.println( municion + "/" + muniTotal);
 
 		try {
 			VoMensaje mensajeMunicion = VoMensaje.builder()

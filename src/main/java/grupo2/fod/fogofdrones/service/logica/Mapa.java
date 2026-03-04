@@ -36,7 +36,7 @@ public class Mapa implements Serializable {
     public Celda[] getGrillaLineal() {
         Celda[] grillaLineal = new Celda[largo * ancho];
         int indice = 0;
-        // Iterar en el mismo orden que el frontend: i (filas/alto) primero, luego j (columnas/largo)
+        // Iterar en el mismo orden que el frontend: i (filas/alto) primero, luego j (columnas/largo), que mierda tiraba esto troleo 
         for(int j = 0; j < ancho; j++) {
             for(int i = 0; i < largo; i++) {
                 grillaLineal[indice] = grilla[i][j];

@@ -13,7 +13,7 @@ gameState = {
     fase: "",
     equipo: "",
     canalPartida: "",
-    drones: [],
+    drones: [], // [{}] ?
     portaNX: 0,
     portaNY: 35,
     portaAX: 63,
@@ -21,8 +21,9 @@ gameState = {
     anchoPorta: 4,
     altoPorta: 6,
     escala: 22.36,
-    tamCelda: 23,
+    tamCelda: 23,               // ver que tan necesario es teniendo escala
     solicitandoGuardado: false
+    //infoCelda
 }; 
 
 const mensaje = {
@@ -42,13 +43,11 @@ const tipoMensaje = Object.freeze({ // una forma de hacer tipo enumerado en js
     NOTIFICACION: 4,
     FINALIZACION: 5,
 });
-
-// podria eliminarse clase celda completamente y usar un metodo?
+/*
+// podria eliminarse clase celda completamente y usar un metodo? 
 class Celda {                                   // calse celda para grilla
     constructor (grid, y, x) {                  // grid = escena donde se crean, indices para posiciones x e y
-        gameState.escala = 22.36;                       // escala de posiciones //////////////////////////////////////////////////////////////////////// borrar
-
-        let municion = "-/-";
+        gameState.escala = 22.36;                       // escala de posiciones ////////////////////////////////////////// borrar
                                                 // añade rectangulo en posicion correspondiente a indices
         this.tile = grid.add.rectangle(x*gameState.escala, y*gameState.escala, gameState.tamCelda, gameState.tamCelda, gameState.niebla).setStrokeStyle(0.0, gameState.bordes).setDepth(1);
         this.tile.setAlpha(0.3);                // ajuste de opacidad para celdas de grilla
@@ -60,8 +59,8 @@ class Celda {                                   // calse celda para grilla
                 grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0.0, gameState.bordes);
                 mensaje.xi = x;
                 mensaje.yi = y;
-                //mensaje.xf = x;
-                //mensaje.yf = y;
+                mensaje.xf = x;
+                mensaje.yf = y;
                 this.tile.setStrokeStyle(3, gameState.colorSelec);    // hacer funcion borrar tinte seleccion para borrar al apretar boton
             } else {
                 if (gameState.clicks === 0){
@@ -71,7 +70,6 @@ class Celda {                                   // calse celda para grilla
                     mensaje.yi = y;
                     mensaje.xf = x;
                     mensaje.yf = y;
-
                     this.tile.setStrokeStyle(3, gameState.colorSelec);
                 } else if ( gameState.clicks === 1 ) {
                     gameState.clicks ++;
@@ -80,7 +78,7 @@ class Celda {                                   // calse celda para grilla
                     mensaje.yf = y;
                     this.tile.setStrokeStyle(3, gameState.colorSelec);
                 } else {
-                    gameState.clicks ++;
+                    //gameState.clicks ++;
                     grid.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0.0, gameState.bordes);
                     mensaje.xi = mensaje.xf;
                     mensaje.yi = mensaje.yf;
@@ -94,7 +92,7 @@ class Celda {                                   // calse celda para grilla
         
         grid.tablero.add(this.tile);            // agrega el rectangulo creado a el tablero
     }
-}   
+}   */
 
 class escena3 extends Phaser.Scene {
 
@@ -131,10 +129,273 @@ class escena3 extends Phaser.Scene {
         //alert(gameState.equipo + " - " + mensaje.nombre);
         this.crearInterfaz();
         this.crearAnimaciones();
-        //this.pantallaImpactos.play('impactoPortaA');
         this.crearPortadrones();
-        this.crearTablero();
+        this.crearTablero2();
         this.conectarSTOMP();
+        this.crearTablero2();
+    }
+
+    crearTablero2() {
+        gameState.infoCelda = new Map();
+        //this.rectGraphics = this.add.graphics();
+
+        for (let j = 0; j < gameState.alto; j++) {
+            for (let i = 0; i < gameState.ancho; i++) {
+                const clave = i + ',' + j ; //`${i},${j}`;
+                const xAbs = gameState.tableroX + i * gameState.escala;
+                const yAbs = gameState.tableroY + j * gameState.escala;
+
+                // Rectángulo base del tablero (siempre visible)
+                //this.rectGraphics.fillStyle(0x1a3a5c);
+                //this.rectGraphics.fillRect(xAbs, yAbs, gameState.escala - 1, gameState.escala - 1);
+
+                // Rectángulo de niebla de guerra, por encima del fondo
+                // setAlpha(0) = sin niebla, setAlpha(0.7) = con niebla
+                const vision = this.add.rectangle(
+                    xAbs ,//+ gameState.escala / 2,
+                    yAbs ,//+ gameState.escala / 2,
+                    gameState.escala , // - 1
+                    gameState.escala , // - 1
+                    gameState.niebla //0x000022    // cmabiar por nuestra niebla 
+                ).setAlpha(0.3);
+
+                //grid.add.rectangle(x*gameState.escala, y*gameState.escala, gameState.tamCelda, gameState.tamCelda, gameState.niebla).setStrokeStyle(0.0, gameState.bordes).setDepth(1);
+
+                gameState.infoCelda.set(clave, {
+                    vision,           // rectángulo de niebla, controlás su alpha
+                    dronA: null,   // imagen del dron, null si no hay
+                    dronN: null,
+                    ammo: 0,
+                    //en vez de tener ambas municiones podemos tener solo una porque no vamos a ver la del dron enemigo
+                    //ammoA: 0,
+                    //ammoN: 0,
+                    //dronId: null,
+                    i,
+                    j
+                });
+            }
+        }
+
+        // UNA sola zona interactiva para TODO el tablero
+        const anchoTotal = gameState.ancho * gameState.escala;
+        const altoTotal = gameState.alto * gameState.escala;
+        
+        const zone = this.add.zone(
+            gameState.tableroX + anchoTotal / 2 - gameState.escala / 2,
+            gameState.tableroY + altoTotal / 2 - gameState.escala / 2,
+            anchoTotal,
+            altoTotal
+        ).setInteractive();
+
+        // ver si esto funciona con el this y los botones sino separarlo
+        //this.input.on('pointerdown', (pointer) => {
+        zone.on('pointerdown', (pointer) => {
+            const columna = Math.floor((pointer.x - gameState.tableroX + gameState.escala / 2) / gameState.escala); // ((pointer.x - gameState.tableroX) / gameState.escala)
+            const fila = Math.floor((pointer.y - gameState.tableroY + gameState.escala / 2) / gameState.escala);   // ((pointer.y - gameState.tableroY) / gameState.escala)
+            console.log(fila + ' / ' + columna);
+            if (columna < 0 || columna >= gameState.ancho || fila < 0 || fila >= gameState.alto) return;
+            
+            if (gameState.fase === "DESPLIEGUE") {
+                mensaje.xi = columna;
+                mensaje.yi = fila;
+                mensaje.xf = columna;
+                mensaje.yf = fila;
+            } else {
+                if ( gameState.clicks === 1 ) {
+                    gameState.clicks ++;
+                    console.log("1 -> " + gameState.clicks);
+                    mensaje.xf = columna;
+                    mensaje.yf = fila;
+                } else if ( gameState.clicks === 0 ) {
+                    gameState.clicks ++;
+                    console.log("0 -> " + gameState.clicks);
+                    mensaje.xi = columna;
+                    mensaje.yi = fila;
+                    mensaje.xf = columna;
+                    mensaje.yf = fila;
+                } else {
+                    console.log("+1 = " + gameState.clicks);
+                    mensaje.xi = mensaje.xf;
+                    mensaje.yi = mensaje.yf;
+                    mensaje.xf = columna;
+                    mensaje.yf = fila;
+                }
+            }
+
+            const data = gameState.infoCelda.get(columna +','+ fila);//(`${columna},${fila}`);
+            if ( (gameState.equipo == "NAVAL" && data.dronN) || (gameState.equipo == "AEREO" && data.dronA) ) {
+                // muestro municion
+                // funciona este this aca?
+                this.textoMunicion.setText(data.ammo);
+            }
+                
+            // remplazar por control de clicks 
+            // Aquí mandás el evento a tu capa lógica
+            //this.events.emit('cellClicked', { columna, fila, data });
+        });
+    }
+
+    setVision (x, y, vision) {
+        const data = gameState.infoCelda.get(x +','+ y);
+        if (!data) return;
+        
+        if (vision)
+            data.vision.setFillStyle(0xffffff);          
+            //data.vision.setAlpha(0);
+        else 
+            data.vision.setFillStyle(gameState.niebla);  
+            //data.vision.setAlpha(0.3);
+
+        // Con tween para transición suave, o directo si preferís
+        //this.tweens.add({
+        //targets: data.fog,
+        //alpha: vision ? 0.75 : 0,
+        //duration: 300});
+    }
+
+    dibujarDron (dron) {
+        if (dron) {
+            let x = dron.posicion.x;
+            let y = dron.posicion.y;
+            const data = gameState.infoCelda.get(x + ',' + y);
+            if (!data) return;
+
+            var xAbs = x*gameState.escala + gameState.tableroX; // + gameState.escala/2;
+            var yAbs = y*gameState.escala + gameState.tableroY; // + gameState.escala/2;
+        // var xAbs = (x + 0.5)gameState.escala + gameState.tableroX;
+        // var yAbs = (y + 0.5)gameState.escala + gameState.tableroY;
+
+        // re pensar teniendo en cuenta que los drones se borran en cada actualizacion
+        
+            if ( dron.equipo == "NAVAL" ) {
+                data.dronN = this.add.sprite(xAbs - 1, yAbs ,"DronN").setScale(1.5).setDepth(2);
+                data.dronN.angle = -90;
+                data.dronN.play('idleN');
+                gameState.drones.push(x + ',' + y);
+            } else {
+                data.dronA = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
+                data.dronA.angle = 90;
+                data.dronA.play('idleA');
+                gameState.drones.push(x + ',' + y);
+            }  
+            if ( dron.equipo == gameState.equipo ) {
+                data.ammo = dron.municion;
+                // setear vision? 
+            }
+            /*
+            if ( dron.equipo == "NAVAL" && !data.dronN ) {
+                data.dronN = this.add.sprite(xAbs - 1, yAbs ,"DronN").setScale(1.5).setDepth(2);
+                data.dronN.angle = -90;
+                data.dronN.play('idleN');
+                gameState.drones.push(x + ',' + y);
+            } else if ( !data.dronA ) {
+                data.dronN = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
+                data.dronA.angle = 90;
+                data.dronA.play('idleA');
+                gameState.drones.push(x + ',' + y);
+            }  
+            if ( dron.equipo == gameState.equipo ) {
+                data.ammo = dron.municion;
+                // setear vision? 
+            }*/
+        }
+    }
+
+    dibujarDron2 (x, y, dron) {
+        const data = gameState.infoCelda.get(x + ',' + y);//(`${x},${y}`);
+        if (!data) return;
+
+        var xAbs = x*gameState.escala + gameState.tableroX + gameState.escala/2;
+        var yAbs = y*gameState.escala + gameState.tableroY + gameState.escala/2;
+        // var xAbs = (x + 0.5)gameState.escala + gameState.tableroX;
+        // var yAbs = (y + 0.5)gameState.escala + gameState.tableroY;
+
+        // re pensar teniendo en cuenta que los drones se borran en cada actualizacion
+        if (dron) {
+            if ( dron.equipo == "NAVAL" && !data.dronN ) {
+                data.dronN = this.add.sprite(xAbs - 1, yAbs ,"DronN").setScale(1.5).setDepth(2);
+                data.dronN.angle = -90;
+                data.dronN.play('idleN');
+                gameState.drones.push(x + ',' + y);
+            } else if ( !data.dronA ) {
+                data.dronN = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
+                data.dronA.angle = 90;
+                data.dronA.play('idleA');
+                gameState.drones.push(x + ',' + y);
+            }  
+            if ( dron.equipo == gameState.equipo ) {
+                data.ammo = dron.municion;
+                // setear vision? 
+            }
+        }
+
+        /* podria funcionar sin !data.dronN
+            if ( equipo == "NAVAL" && !data.dronN ) {
+                data.dronN = this.add.sprite(xAbs - 1, yAbs ,"DronN").setScale(1.5).setDepth(2);
+                data.dronN.angle = -90;
+                data.dronN.play('idleN');
+            } else if ( !data.dronA ) {
+                data.dronN = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
+                data.dronA.angle = 90;
+                data.dronA.play('idleA');
+            }  
+        */
+        /*
+        if (equipo) {
+            if (!data.dron) {
+                // Los drones más grandes que la celda: usás un factor de escala
+                data.dron = this.add.image(worldX, worldY, dronInfo.texture)
+                    .setDisplaySize(this.CELL_SIZE * 1.5, this.CELL_SIZE * 1.5)
+                    .setDepth(1); // Por encima de la niebla que tiene depth 0
+            } else {
+                data.dron.setTexture(dronInfo.texture);
+            }
+            data.ammo = dronInfo.ammo;
+            data.dronId = dronInfo.id;
+        } else {
+            data.dron?.destroy();
+            data.dron = null;
+            data.ammo = 0;
+            data.dronId = null;
+        }
+        
+        let dron = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
+        dron.angle = 90;
+        /*
+        dron.setInteractive(); 
+        dron.on('pointerdown', () => {
+            if(gameState.equipo === "AEREO") {
+                mensaje.accion = "MUNICION";  
+                mensaje.Xi = mensaje.xf;
+                mensaje.yi = mensaje.yf;
+                //let pos = { x: 0, y: 0 };
+                //Phaser.Math.ToXY(i,63,35,pos);
+                mensaje.Xf = Phaser.Math.ToXY(i,64,36).x;//pos.x;
+                mensaje.yf = Phaser.Math.ToXY(i,64,36).y;//pos.y;     
+                this.enviarMensage(mensaje); 
+            }
+        });
+        *//*
+        dron.play('idleA');
+        gameState.drones.push(dron);*/
+    }
+
+
+    eliminardrones(){
+        for (let i = 0; i < gameState.drones.length; i++) {
+            let clave = gameState.drones[i];
+            let celda = gameState.infoCelda.get(clave);
+            if (celda.dronN) {
+                celda.dronN.destroy();
+                celda.dronN = null;
+            }
+            if (celda.dronA) {
+                celda.dronA.destroy();
+                celda.dronA = null;
+            }           
+            celda.ammo = 0;
+        }
+        gameState.drones.length = 0;
     }
 
     conectarSTOMP() {
@@ -196,24 +457,34 @@ class escena3 extends Phaser.Scene {
                 // limpiado de mascara y drones
                 this.forma.clear(); 
                 this.forma.fillStyle(0xff0000, 0);
-                this.eliminarDrones();
+                this.eliminardrones();
                 // actualizado de tablero celda a celda, junto a drones y mascara
                 /*  portaNX: 0,     portaNY: 35,    
                     portaAX: 63,    portaAY: 0,*/
                 var i = 0;
                 msg.grilla.forEach((cel) => {
-                    let celda = this.tablero.getAt(i);
+                    let pos = Phaser.Math.ToXY(i, gameState.ancho, gameState.alto);
+
+                    //let x = pos.x;
+                    //let y = pos.y;
+
                     if ( (gameState.equipo === "NAVAL" && cel.visionNaval) || (gameState.equipo === "AEREO" && cel.visionAereo)) {
-                        celda.setFillStyle(0xffffff);
+                        this.setVision(pos.x, pos.y, true);
                         if (cel.naval)
-                            this.dibujarDronNaval(celda.x, celda.y);
+                            this.dibujarDron(cel.naval);
+                            //this.dibujarDron(pos.x, pos.y, i);
                         if (cel.aereo)
-                            this.dibujarDronAereo(celda.x, celda.y);
-                        if( (celda.x <= (gameState.portaNX+gameState.anchoPorta-1)*gameState.tamCelda && celda.y >= (gameState.portaNY-gameState.altoPorta)*gameState.tamCelda) || (celda.x >= (gameState.portaAX-gameState.anchoPorta-1)*gameState.tamCelda && celda.y <= (gameState.portaAY+gameState.altoPorta-1)*gameState.tamCelda) )  {
-                                this.forma.fillRect(celda.x + gameState.tableroX -gameState.tamCelda / 2, celda.y + gameState.tableroY -gameState.tamCelda / 2, gameState.tamCelda, gameState.tamCelda);
-                        }  
+                            this.dibujarDron(cel.aereo);
+                            //this.dibujarDron(pos.x, pos.y, i);
+                        if( (pos.x <= (gameState.portaNX+gameState.anchoPorta-1) && pos.y >= (gameState.portaNY-gameState.altoPorta+1)) || (pos.x >= (gameState.portaAX-gameState.anchoPorta+1) && pos.y <= (gameState.portaAY+gameState.altoPorta-1)) )  {
+                                this.forma.fillRect(pos.x*gameState.escala + gameState.tableroX -gameState.escala / 2, pos.y*gameState.escala + gameState.tableroY -gameState.escala / 2, gameState.escala, gameState.escala);
+                        }    
+                        /*
+                        if( (pos.x <= (gameState.portaNX+gameState.anchoPorta-1)*gameState.escala && pos.y >= (gameState.portaNY-gameState.altoPorta)*gameState.escala) || (pos.x >= (gameState.portaAX-gameState.anchoPorta-1)*gameState.escala && pos.y <= (gameState.portaAY+gameState.altoPorta-1)*gameState.escala) )  {
+                                this.forma.fillRect(pos.x + gameState.tableroX -gameState.escala / 2, pos.y + gameState.tableroY -gameState.escala / 2, gameState.escala, gameState.escala);
+                        }  */
                     } else {
-                        celda.setFillStyle(gameState.niebla);
+                        this.setVision(pos.x, pos.y, false);
                     }
                     i++;
                 });
@@ -405,7 +676,7 @@ class escena3 extends Phaser.Scene {
     }
 
     crearTablero() {
-        this.tablero = this.add.container (gameState.tableroX, gameState.tableroY);     // creaccion de elemento container que almacenara las celdas 
+        // this.tablero = this.add.container (gameState.tableroX, gameState.tableroY);     // creaccion de elemento container que almacenara las celdas 
         for (var i = 0; i < gameState.alto; i++) {      // creacion de celdas en for anidado
             for (var j = 0; j< gameState.ancho; j++) {  // indeces i y j siven para calcular posicion correspondiente x e y
                 new Celda(this,i,j);                    // al crearse la celda se agrega sola a container tablero
@@ -436,8 +707,8 @@ class escena3 extends Phaser.Scene {
         //boton pasar turno con skin alternativa para desplegar al inicio
         pasarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if ( ! gameState.solicitandoGuardado) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 gameState.clicks = 0;
                 mensaje.accion = "PASAR";               
                 this.enviarMensage(mensaje); 
@@ -509,8 +780,8 @@ class escena3 extends Phaser.Scene {
         });
         moverBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")  && ! gameState.solicitandoGuardado) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 gameState.clicks = 0;
                 mensaje.accion = "MOVER";               
                 this.enviarMensage(mensaje);  
@@ -531,8 +802,8 @@ class escena3 extends Phaser.Scene {
         });
         atacarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && !gameState.solicitandoGuardado ) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 gameState.clicks = 0;
                 mensaje.accion = "ATACAR";               
                 this.enviarMensage(mensaje); 
@@ -553,8 +824,8 @@ class escena3 extends Phaser.Scene {
         });
         recargarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && ! gameState.solicitandoGuardado) {
-                this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-                this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+                // this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
                 gameState.clicks = 0;
                 mensaje.accion = "RECARGAR";               
                 this.enviarMensage(mensaje); 
@@ -572,8 +843,8 @@ class escena3 extends Phaser.Scene {
 
         //boton pasar turno con skin alternativa para desplegar al inicio
         this.desplegarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
-            //this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(1, gameState.bordes);
+            // this.tablero.getAt((mensaje.xi+(mensaje.yi*gameState.ancho)).toString()).setStrokeStyle(0, gameState.bordes);
+            //// this.tablero.getAt((mensaje.xf+(mensaje.yf*gameState.ancho)).toString()).setStrokeStyle(1, gameState.bordes);
             gameState.clicks = 0;
             mensaje.accion = "DESPLEGAR";
             this.enviarMensage(mensaje);              
@@ -695,60 +966,72 @@ class escena3 extends Phaser.Scene {
             ]
         });
     }
-
-    dibujarDronNaval (x, y) {
+    /*
+    dibujarDronNaval (x, y, i) {
         var xAbs = x + gameState.tableroX;
         var yAbs = y + gameState.tableroY;
         let dron = this.add.sprite(xAbs - 1, yAbs ,"DronN").setScale(1.5).setDepth(2);
         dron.angle = -90;
-        
+        *//*
         dron.setInteractive(); 
         dron.on('pointerdown', () => {
             if(gameState.equipo === "NAVAL") {
-                mensaje.accion = "MUNICION";               
+                mensaje.accion = "MUNICION";
+                mensaje.Xi = mensaje.xf;
+                mensaje.yi = mensaje.yf; 
+                //let pos = { x: 0, y: 0 };
+                //Phaser.Math.ToXY(i,63,35);
+                mensaje.Xf = Phaser.Math.ToXY(i,64,36).x;//pos.x;
+                mensaje.yf = Phaser.Math.ToXY(i,64,36).y;//pos.y;          
                 this.enviarMensage(mensaje); 
             }
         });
-        
+        *//*
         dron.play('idleN');
         
         gameState.drones.push(dron);
     }
 
-    dibujarDronAereo (x, y) {
+    dibujarDronAereo (x, y, i) {
         var xAbs = x + gameState.tableroX;
         var yAbs = y + gameState.tableroY;
         let dron = this.add.sprite(xAbs + 1, yAbs ,"DronA").setScale(1.5).setDepth(2);
         dron.angle = 90;
-
+        *//*
         dron.setInteractive(); 
         dron.on('pointerdown', () => {
             if(gameState.equipo === "AEREO") {
-                mensaje.accion = "MUNICION";               
+                mensaje.accion = "MUNICION";  
+                mensaje.Xi = mensaje.xf;
+                mensaje.yi = mensaje.yf;
+                //let pos = { x: 0, y: 0 };
+                //Phaser.Math.ToXY(i,63,35,pos);
+                mensaje.Xf = Phaser.Math.ToXY(i,64,36).x;//pos.x;
+                mensaje.yf = Phaser.Math.ToXY(i,64,36).y;//pos.y;     
                 this.enviarMensage(mensaje); 
             }
         });
-
+        *//*
         dron.play('idleA');
         gameState.drones.push(dron);
-    }
-
-    eliminarDrones(){
+    }*/
+    /*
+    eliminardrones(){
         for (let i = 0; i < gameState.drones.length; i++) {
             const d = gameState.drones[i];
             d.destroy();
         }
         gameState.drones.length = 0;
-    }
+    }*/
 
     enviarMensage(data) {
         window.conexionWS.enviar('/app/accion', data);
     }
 
     shutdown() {
-        this.eliminarDrones();
-        if (this.tablero)
-            this.tablero.destroy();
+        this.eliminardrones();
+        //if (this.tablero)
+        //    this.tablero.destroy();
         if (this.forma)
             this.forma.destroy();
         if (this.mask)
