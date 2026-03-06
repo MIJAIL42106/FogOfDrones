@@ -19,7 +19,6 @@ public class VoMensaje {
     private int vidaPortaA;
     private int cantDronesN;
     private int cantDronesA;
-    private int turnosMS;
     private Celda[] grilla;
     private String nombre;
     private Equipo equipo;

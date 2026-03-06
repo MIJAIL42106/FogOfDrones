@@ -28,21 +28,21 @@ gameState = {
     escala: 26,//22.36, // 1.16
     tamCelda: 23,               // ver que tan necesario es teniendo escala
     solicitandoGuardado: false,
-    escalaBtn: 1.5 
+    escalaBtn: 2 
     //infoCelda
 }; 
 
 const mensaje = {
     nombre: "",
     accion: "",
-    xi: 30,
+    xi: 30,         // poner negativos, podria dar problema al cargar partida
     yi: 15,
     xf: 30,
     yf: 15
 };
 
 const tipoMensaje = Object.freeze({ // una forma de hacer tipo enumerado en js
-    DATOS: 0,  
+    //DATOS: 0,  
     ESTADOPARTIDA: 1,
     GUARDADO: 2,
     ERROR: 3,
@@ -68,6 +68,8 @@ class escena3 extends Phaser.Scene {
         this.load.image("FondoMS",".//assets/fondos/FondoMuerteSubita.png");
         this.load.image("Escenario",".//assets/escenarios/escenario1.png");
         this.load.image("EscenarioMuerteSubita",".//assets/escenarios/escenario2.png");
+        this.load.image("LogoA",".//assets/fondos/logo_Aereo.png");
+        this.load.image("LogoN",".//assets/fondos/logo_Naval.png");
         this.load.image("Mover",".//assets/fondos/mover.png");
         this.load.image("Atacar",".//assets/fondos/atacar.png");
         this.load.image("Recargar",".//assets/fondos/recargar.png");
@@ -164,6 +166,10 @@ class escena3 extends Phaser.Scene {
             console.log(fila + ' / ' + columna);
             if (columna < 0 || columna >= gameState.ancho || fila < 0 || fila >= gameState.alto) return;
             
+            this.limpiarBordes();
+            //gameState.infoCelda.get(mensaje.xi +','+ mensaje.yi).vision.setStrokeStyle(0, gameState.colorSelec);
+            //gameState.infoCelda.get(mensaje.xf +','+ mensaje.yf).vision.setStrokeStyle(0, gameState.colorSelec);
+
             if (gameState.fase === "DESPLIEGUE") {
                 mensaje.xi = columna;
                 mensaje.yi = fila;
@@ -191,11 +197,15 @@ class escena3 extends Phaser.Scene {
                 }
             }
 
+            gameState.infoCelda.get(mensaje.xi +','+ mensaje.yi).vision.setStrokeStyle(3, gameState.colorSelec);
             const data = gameState.infoCelda.get(columna +','+ fila);//(`${columna},${fila}`);
+            data.vision.setStrokeStyle(3, gameState.colorSelec);
             if ( (gameState.equipo == "NAVAL" && data.dronN) || (gameState.equipo == "AEREO" && data.dronA) ) {
                 // muestro municion
                 // funciona este this aca?
-                this.textoMunicion.setText(data.ammo);
+                //this.textoMunicion.setText(data.ammo);
+                this.mostrarMensajeMunicion(data.ammo, pointer.x, pointer.y);
+                this.marcarRango(columna, fila);
             }
         });
     }
@@ -254,6 +264,32 @@ class escena3 extends Phaser.Scene {
         gameState.drones.length = 0;
     }
 
+    limpiarBordes() {
+        gameState.infoCelda.get(mensaje.xi +','+ mensaje.yi).vision.setStrokeStyle(0, gameState.colorSelec);
+        gameState.infoCelda.get(mensaje.xf +','+ mensaje.yf).vision.setStrokeStyle(0, gameState.colorSelec);
+        for (let i = mensaje.xf-6; i <= mensaje.xf+6; i++) {
+            for (let j = mensaje.yf-6; j <= mensaje.yf+6; j++) {
+                if( ( (Math.abs(mensaje.xf-i) + Math.abs(mensaje.yf-j)) <= 6 ) && i>=0 && i<gameState.ancho && j>=0 && j<gameState.alto ) {
+                    let rect = gameState.infoCelda.get(i +','+ j).vision;
+                    if ( rect.fillColor == (gameState.niebla + 0xfffb86) || rect.fillColor == (0xffffff + 0xfffb86))
+                        rect.setFillStyle(rect.fillColor - 0xfffb86);
+                }
+            }
+        }
+    }
+
+    marcarRango(x, y) {
+        for (let i = x-6; i <= x+6; i++) {
+            for (let j = y-6; j <= y+6; j++) {
+                if( ( (Math.abs(x-i) + Math.abs(y-j)) <= 6 ) && i>=0 && i<gameState.ancho && j>=0 && j<gameState.alto ) {
+                    let rect = gameState.infoCelda.get(i +','+ j).vision;
+                    if ( rect.fillColor == gameState.niebla || rect.fillColor == 0xffffff)
+                        rect.setFillStyle(rect.fillColor + 0xfffb86);
+                }
+            }
+        }
+    }
+
     conectarSTOMP() {
         window.conexionWS.conectar(() => {
             // suscribir al canal específico de la partida (y mantener /topic/game como respaldo)
@@ -282,6 +318,7 @@ class escena3 extends Phaser.Scene {
     procesarMensaje(msg) {
         console.log("procesarMensaje - recibido:", msg.tipoMensaje, "canal:", gameState.canalPartida, "miNombre:", mensaje.nombre);
         switch (msg.tipoMensaje) {
+            /*
             case tipoMensaje.DATOS: { 
                 gameState.vidaPortaN = msg.vidaPortaN;
                 gameState.vidaPortaA = msg.vidaPortaA;
@@ -290,7 +327,7 @@ class escena3 extends Phaser.Scene {
                 gameState.turnosMS = msg.turnosMS;
                 gameState.turno = msg.equipo;
                 this.actualizarHUD();
-            } break;
+            } break;*/
             case tipoMensaje.ESTADOPARTIDA: {
                 console.log("ESTADOPARTIDA - fase:", msg.fasePartida, "grillaLen:", msg.grilla ? msg.grilla.length : 0);
                 // actualizado de fase de partida
@@ -322,11 +359,21 @@ class escena3 extends Phaser.Scene {
                             }
                             this.musica.stop();
                             this.musicaMS.play({volume: 0.2});
+                            this.textoTurnosMS.setVisible(true);
                             this.muerteSubitaActiva = true;
                         }
                         
                     }
                 }
+
+                gameState.vidaPortaN = msg.vidaPortaN;
+                gameState.vidaPortaA = msg.vidaPortaA;
+                gameState.cantDronesN = msg.cantDronesN;
+                gameState.cantDronesA = msg.cantDronesA;
+                gameState.turnosMS = msg.turnosMuerteSubita;
+                gameState.turno = msg.equipo;
+                this.actualizarHUD();
+
                 // limpiado de mascara y drones
                 this.forma.clear(); 
                 this.forma.fillStyle(0xff0000, 0);
@@ -395,6 +442,13 @@ class escena3 extends Phaser.Scene {
                 console.log("ERROR - evento:", msg.evento, "destino:", msg.nombre);
                 if (mensaje.nombre === msg.nombre) { // alerta error a jugador
                     this.mostrarMensajeError(msg.evento);
+                    if (msg.evento.includes('No se puede guardar')) {
+                        gameState.solicitandoGuardado = false;
+                        if (this.oscurecer && this.oscurecer.destroy) {
+                            this.oscurecer.destroy();
+                            this.oscurecer = null;
+                        }
+                    }
                     //alert("err:"+msg.evento);
 
                     /////////////////////////////////////////////////////////////////////////
@@ -557,14 +611,23 @@ class escena3 extends Phaser.Scene {
     }
 
     actualizarHUD() {
-        //this.vida
+        this.textoTurno.setText(gameState.turno);
+        this.textoCantDA.setText(gameState.cantDronesA + "x");
+        this.textoCantDN.setText("x" + gameState.cantDronesN);
+        this.textoVidaA.setText(gameState.vidaPortaA + "/6");
+        this.textoVidaN.setText(gameState.vidaPortaN + "/3");
+        this.barraVidaA.setScale(gameState.vidaPortaA / 6, 1);
+        this.barraVidaN.setScale(gameState.vidaPortaN / 3, 1);
+        if (this.muerteSubitaActiva) {
+            this.textoTurnosMS.setText( gameState.turnosMS + " Turnos \nRestantes");
+        }
     }
 
     // podria no pasarse el boton
     botonPasar(boton) {
         const p = boton;
         p.destroy();
-        var pasarBtn = this.add.image(boton.x, boton.y, "Pasar").setScale(gameState.escalaBtn).setDepth(2).setInteractive();
+        var pasarBtn = this.add.image(boton.x, boton.y, "Pasar").setScale(gameState.escalaBtn).setDepth(2).setInteractive({ useHandCursor: true });
         
         pasarBtn.on('pointerover', () => {     // asigna interaccion al clikear
             if ( ! gameState.solicitandoGuardado) {
@@ -588,7 +651,7 @@ class escena3 extends Phaser.Scene {
         pasarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if ( ! gameState.solicitandoGuardado) {
                 gameState.clicks = 0;
-                // limpiar bordes
+                this.limpiarBordes();
                 mensaje.accion = "PASAR";               
                 this.enviarMensage(mensaje); 
             }
@@ -599,17 +662,49 @@ class escena3 extends Phaser.Scene {
         // 960 y 540 podrian obtenerse de camara main
         this.fondo = this.add.image(960,540,"Fondo").setDepth(-1);   // creacion de fondo en posicion    // podria calcularse centro despues
         this.fondo.setScale(1);                              // seteo de escala de fondo, hecho a medida, escala 1
-        // ver si se puede usar tableroX y tableroY para posicion de escenario
+        //
         this.escenario = this.add.image(gameState.tableroX - gameState.escala/2, gameState.tableroY - gameState.escala/2,"Escenario").setOrigin(0, 0).setDepth(0);
         this.escenario.setScale(1.163);
         // escenario muerte subita
         this.fondoMS = null;
         this.escenarioMS = null;
+        
 
-        this.nombreNaval = this.add.text(gameState.tableroX - gameState.escala / 2, (gameState.tableroY- gameState.escala / 2) / 2 , "aaa", { fontFamily: 'Courier, monospace', fontSize: 40, color: '#ffffff' }).setOrigin(0, 0.5).setDepth(1);
-        this.nombreAereo = this.add.text(gameState.tableroX - gameState.escala / 2 + gameState.escala * gameState.ancho, (gameState.tableroY- gameState.escala / 2) / 2 , "bbbb", { fontFamily: 'Courier, monospace', fontSize: 40, color: '#ffffff' }).setOrigin(1, 0.5).setDepth(1);
-        this.barraVidaN = this.add.rectangle(gameState.tableroX - gameState.escala / 2 , (gameState.tableroY- gameState.escala / 2) / 2 , 480, 50, gameState.colorVerde).setOrigin(0,0.5);
-        this.barraVidaA = this.add.rectangle(gameState.tableroX - gameState.escala / 2 + gameState.escala * gameState.ancho, (gameState.tableroY- gameState.escala / 2) / 2, 480, 50, gameState.colorVerde).setOrigin(1,0.5);
+        const nombreJugadores = gameState.canalPartida.substring(7).split("-",2)
+
+        const anchoBarra = 420 ;
+        const altoBarra = 50 ;
+        var barraY = (gameState.tableroY- gameState.escala / 2) / 2;
+        var barraX = gameState.tableroX - gameState.escala / 2;
+        const logoNaval = this.add.image(barraX, barraY,"LogoN").setOrigin(0, 0.5).setDepth(0).setScale(0.75);
+        const anchoLogo = logoNaval.width * logoNaval.scale;
+        this.textoNombreN = this.add.text(barraX + anchoLogo, barraY, nombreJugadores[0], { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0, 0.5).setDepth(2);
+        this.textoVidaN = this.add.text(barraX + anchoLogo + anchoBarra, barraY, "3/3", { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(1, 0.5).setDepth(2);
+        const iconDronN = this.add.sprite(barraX + anchoLogo + anchoBarra, barraY ,"DronN").setScale(1.5).setOrigin(0.5, 0.5).setDepth(2);
+        iconDronN.x += iconDronN.width / 2 + 10;
+        this.textoCantDN = this.add.text(barraX + anchoLogo + anchoBarra + iconDronN.width + 10, barraY, "x6", { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0, 0.5).setDepth(2);
+        this.barraVidaN = this.add.rectangle(barraX + anchoLogo, barraY, anchoBarra, altoBarra, gameState.colorVerde).setOrigin(0,0.5).setDepth(1);
+        this.sombraBarraVidaN = this.add.rectangle(barraX + anchoLogo - 5, barraY, anchoBarra + 10, altoBarra + 10, gameState.niebla).setOrigin(0,0.5).setDepth(0);
+        
+        barraX += gameState.escala * gameState.ancho;
+        const logoAereo = this.add.image(barraX , barraY,"LogoA").setOrigin(1, 0.5).setDepth(0).setScale(0.75);
+        this.textoNombreA = this.add.text(barraX - anchoLogo, barraY , nombreJugadores[1], { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(1, 0.5).setDepth(2);
+        this.textoVidaA = this.add.text(barraX - anchoLogo - anchoBarra, barraY , "6/6", { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0, 0.5).setDepth(2);
+        const iconDronA = this.add.sprite(barraX - anchoLogo - anchoBarra, barraY ,"DronA").setScale(1.5).setOrigin(0.5, 0.5).setDepth(2);
+        iconDronA.x -= iconDronN.width / 2 + 10;
+        this.textoCantDA = this.add.text(barraX - anchoLogo - anchoBarra - iconDronN.width - 10, barraY, "12x", { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(1, 0.5).setDepth(2);
+        this.barraVidaA = this.add.rectangle(barraX - anchoLogo, barraY, anchoBarra, altoBarra, gameState.colorRojo).setOrigin(1,0.5).setDepth(1); 
+        this.sombraBarraVidaA = this.add.rectangle(barraX - anchoLogo + 5, barraY, anchoBarra + 10, altoBarra + 10, gameState.niebla).setOrigin(1,0.5).setDepth(0);
+
+        barraX += gameState.tableroX - gameState.escala / 2;
+        this.textoTurnosMS = this.add.text(barraX - gameState.tableroX / 2, barraY, "0 Turnos \nRestantes", { fontFamily: 'Courier, monospace', fontSize: 35, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0, 0.5).setDepth(2);
+        this.textoTurnosMS.setVisible(false);
+
+        barraX /= 2;
+        this.textoTurno = this.add.text(barraX , barraY , "Naval", { fontFamily: 'Courier, monospace', fontSize: 60, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0.5, 0.5).setDepth(2);
+        this.fondoTurno = this.add.rectangle(barraX , 0, anchoBarra / 2, barraY * 2, gameState.niebla).setOrigin(0.5, 0).setDepth(1);
+        this.fondoTurnoRojo = this.add.rectangle(barraX + gameState.escala / 2, 0, anchoBarra / 2, barraY * 2, gameState.colorRojo).setOrigin(0.5, 0).setDepth(0);
+        this.fondoTurnoVerde = this.add.rectangle(barraX - gameState.escala / 2, 0, anchoBarra / 2, barraY * 2, gameState.colorVerde).setOrigin(0.5, 0).setDepth(0);
 
         this.zonaDesp;
         const anchoZona = 15 * gameState.escala; // ancho de zona despligue 15 casillas   // hacer metodo que se borran cuando pasa a jugando // -gameState.escala / 2
@@ -621,17 +716,18 @@ class escena3 extends Phaser.Scene {
         }
         this.zonaDesp.setStrokeStyle(1, gameState.bordes).setAlpha(0.2).setDepth(1); 
 
-        this.textoAlertas = this.add.text(960, -30, " ", { fontFamily: 'Courier, monospace', fontSize: 40, color: '#ffffff' }).setOrigin(0.5, 0.5).setDepth(3);
+        this.textoAlertas = this.add.text(this.textoTurno.x, -30, " ", { fontFamily: 'Courier, monospace', fontSize: 40, color: '#ffffff' }).setStroke('#000000', 2).setOrigin(0.5, 0.5).setDepth(3);
         this.textoAlertas.setAlpha(0);
 
-        this.textoAyudas = this.add.text(0, 0, " ", {fontSize: '25px', fill: '#fff', backgroundColor: '#000' }).setVisible(false).setOrigin(0.5, 0.5).setDepth(3);;
-        
-        const posXBtn = 1800 ;
-        this.textoMunicion = this.add.text(posXBtn, 350, "-", { fontFamily: 'Courier, monospace', fontSize: 40, color: '#ffffff' }).setOrigin(0.5, 0.5).setDepth(1);
-        
+        this.textoMunicion = this.add.text(0, 0, "", { fontFamily: 'Courier, monospace', fontSize: 25, color: '#000000' }).setOrigin(0.5, 0.5).setDepth(3);
+        this.textoMunicion.setAlpha(0);
+        ///////////////////////////////////////////// probar font y quitar px
+        this.textoAyudas = this.add.text(0, 0, " ", {fontSize: '25px', fill: '#fff', backgroundColor: '#000' }).setVisible(false).setOrigin(0.5, 0.5).setDepth(3);
+
+        const posXBtn = 1810 ;
         const tamBtn = 64 * gameState.escalaBtn ;
-        const sep = 35 ;
-        var posY = 450 ;
+        const sep = 67 ;
+        var posY =  gameState.tableroY * 1.5 ;
         this.desplegarBtn = this.add.image(posXBtn,posY,"Desplegar").setScale(gameState.escalaBtn).setDepth(0).setInteractive({ useHandCursor: true });
         posY += tamBtn + sep;
         var moverBtn = this.add.image(posXBtn,posY,"Mover").setScale(gameState.escalaBtn).setDepth(0).setInteractive({ useHandCursor: true });
@@ -650,7 +746,7 @@ class escena3 extends Phaser.Scene {
         this.musicaMS = this.sound.add("MusicaMuerteSubita",{ loop: true });
 
         ///////////////////////////////////////////////////////////////// mover despues
-        this.pantallaImpactos = this.add.sprite(posY , 850 ,"Impactos").setScale(1).setDepth(2);
+        this.pantallaImpactos = this.add.sprite(this.textoTurno.x , 540 ,"Impactos").setScale(1.5).setDepth(2);
         this.pantallaImpactos.setVisible(false);
 
         moverBtn.on('pointerover', () => {     // asigna interaccion al clikear 
@@ -673,7 +769,7 @@ class escena3 extends Phaser.Scene {
         });
         moverBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")  && ! gameState.solicitandoGuardado) {
-                // limpiar bordes
+                this.limpiarBordes();
                 gameState.clicks = 0;
                 mensaje.accion = "MOVER";               
                 this.enviarMensage(mensaje);  
@@ -700,7 +796,7 @@ class escena3 extends Phaser.Scene {
         });
         atacarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && !gameState.solicitandoGuardado ) {
-                // limpiar bordes
+                this.limpiarBordes();
                 gameState.clicks = 0;
                 mensaje.accion = "ATACAR";               
                 this.enviarMensage(mensaje); 
@@ -727,7 +823,7 @@ class escena3 extends Phaser.Scene {
         });
         recargarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && ! gameState.solicitandoGuardado) {
-                // limpiar bordes
+                this.limpiarBordes();
                 gameState.clicks = 0;
                 mensaje.accion = "RECARGAR";               
                 this.enviarMensage(mensaje); 
@@ -749,7 +845,7 @@ class escena3 extends Phaser.Scene {
 
         //boton pasar turno con skin alternativa para desplegar al inicio
         this.desplegarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            // limpiar bordes
+            this.limpiarBordes();
             gameState.clicks = 0;
             mensaje.accion = "DESPLEGAR";
             this.enviarMensage(mensaje);              
@@ -776,36 +872,37 @@ class escena3 extends Phaser.Scene {
         guardarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
             if((gameState.fase === "JUGANDO" || gameState.fase === "MUERTE_SUBITA")   && ! gameState.solicitandoGuardado) {
                 gameState.clicks = 0;
-                // limpiar bordes, clicks = 0 aca
+                this.limpiarBordes(); //, clicks = 0 aca
                 mensaje.accion = "GUARDAR";               
                 this.enviarMensage(mensaje); 
                 gameState.solicitandoGuardado = true;
-                this.oscurecer = this.add.rectangle(950, 540, 1920, 1080, gameState.niebla).setDepth(2).setAlpha(0.4);
+                this.oscurecer = this.add.rectangle(950, 540, 1920, 1080, gameState.niebla).setDepth(3).setAlpha(0.4);
             }
         });
     }
 
     solicitarGuardado(){
         gameState.solicitandoGuardado = true;
-        var oscurecer = this.add.rectangle(950, 540, 1920, 1080, gameState.niebla).setDepth(2).setAlpha(0.4);
-        var alerta = this.add.rectangle(950, 540, 1920*0.6, 1080*0.8, gameState.niebla).setDepth(3);
-        var rechazarBtn = this.add.image(950 - 333, 800,"Rechazar").setInteractive({ useHandCursor: true }).setDepth(4);
-        var aceptarBtn = this.add.image(950 + 333, 800,"Aceptar").setInteractive({ useHandCursor: true }).setDepth(4);
+        var oscurecer = this.add.rectangle(950, 540, 1920, 1080, gameState.niebla).setDepth(3).setAlpha(0.4);
+        var alerta = this.add.rectangle(950, 540, 1920*0.6, 1080*0.3, gameState.niebla).setDepth(3);
+        var rechazarBtn = this.add.image(950 - 333, alerta.y + alerta.height / 6,"Rechazar").setInteractive({ useHandCursor: true }).setDepth(4);
+        var aceptarBtn = this.add.image(950 + 333, alerta.y + alerta.height / 6,"Aceptar").setInteractive({ useHandCursor: true }).setDepth(4);
+        var textoSolicitud = this.add.text(950, alerta.y - alerta.height / 4, "Se ha recibido una solicitud de guardado\nDesea guardar la partida y volver al menu?", { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0.5, 0.5).setDepth(4);
 
         rechazarBtn.on('pointerover', function() {     // asigna interaccion al clikear
-        rechazarBtn.setTint(gameState.colorSelec);
-        rechazarBtn.setScale(1.1);               
+            rechazarBtn.setTint(0xff3030);
+            rechazarBtn.setScale(1.1);               
         });
         rechazarBtn.on('pointerout', function() {     // asigna interaccion al clikear
             rechazarBtn.clearTint();
             rechazarBtn.setScale(1);               
         });
         rechazarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            gameState.clicks = 0;
             mensaje.accion = "RECHAZAR";               
             this.enviarMensage(mensaje); 
             gameState.solicitandoGuardado = false;
             oscurecer.destroy();
+            textoSolicitud.destroy();
             alerta.destroy();
             rechazarBtn.destroy();
             aceptarBtn.destroy();
@@ -820,12 +917,12 @@ class escena3 extends Phaser.Scene {
             aceptarBtn.setScale(1);               
         });
         aceptarBtn.on('pointerdown', () => {     // asigna interaccion al clikear
-            gameState.clicks = 0;
             mensaje.accion = "ACEPTAR";               
             this.enviarMensage(mensaje); 
 
             gameState.solicitandoGuardado = true;
 			oscurecer.destroy();
+            textoSolicitud.destroy();
 			alerta.destroy();
 			rechazarBtn.destroy();
 			aceptarBtn.destroy();
@@ -834,7 +931,8 @@ class escena3 extends Phaser.Scene {
 
     mostrarMensajeError(texto) {
         this.textoAlertas.setText("  "+texto+"  ");
-        this.textoAlertas.setBackgroundColor('#ff00007f');
+        this.textoAlertas.setBackgroundColor('#ff0000d7');
+        const duracion = texto.length * 55;
 
         this.cadena1 = this.tweens.chain({
             targets: this.textoAlertas,
@@ -849,7 +947,7 @@ class escena3 extends Phaser.Scene {
                     alpha: 0,
                     ease: 'Power2' ,
                     duration: 500 ,
-                    delay: 1000
+                    delay: duracion
                 }
             ]
         });
@@ -857,7 +955,8 @@ class escena3 extends Phaser.Scene {
 
     mostrarMensajeEvento(texto) {
         this.textoAlertas.setText("  "+texto+"  ");
-        this.textoAlertas.setBackgroundColor('#000dff7f');
+        this.textoAlertas.setBackgroundColor('#000dffd6');
+        const duracion = texto.length * 55;
 
         this.cadena2 = this.tweens.chain({
             targets: this.textoAlertas,
@@ -872,7 +971,31 @@ class escena3 extends Phaser.Scene {
                     alpha: 0,
                     ease: 'Power2' ,
                     duration: 500 ,
-                    delay: 1000
+                    delay: duracion
+                }
+            ]
+        });
+    }
+
+    mostrarMensajeMunicion(municion, x, y) {
+        this.textoMunicion.setText(" Municion: "+municion+" ");
+        this.textoMunicion.setBackgroundColor('#fbff0090');
+        this.textoMunicion.setPosition(x, y);
+
+        this.cadena3 = this.tweens.chain({
+            targets: this.textoMunicion,
+            tweens: [
+                {
+                    y: this.textoMunicion.y - 30 ,
+                    alpha: 1,
+                    ease: 'Power3' ,
+                    duration: 300
+                },{
+                    y: this.textoMunicion.y - 20 ,
+                    alpha: 0,
+                    ease: 'Power2' ,
+                    duration: 500 ,
+                    delay: 700
                 }
             ]
         });
@@ -885,6 +1008,14 @@ class escena3 extends Phaser.Scene {
     shutdown() {
         // Guardar el canal antes de limpiar el gameState; si no, no podremos desuscribir.
         //const canalAnterior = gameState.canalPartida;
+        if (this.musica) {
+            this.musica.stop();
+            this.musica.destroy();
+        }
+        if (this.musicaMS) {
+            this.musicaMS.stop();
+            this.musicaMS.destroy();
+        }
         if (gameState.canalPartida) {
             window.conexionWS.desuscribir(gameState.canalPartida);
         }

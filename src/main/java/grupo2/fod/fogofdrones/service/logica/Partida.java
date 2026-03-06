@@ -407,7 +407,7 @@ public class Partida implements Serializable {
             //emitirMensaje("Error: recarga no valida",3);
         }
     }
-
+    /*
     public int obtenerMunicion(Posicion posParam, Equipo equipoParam) {
         //System.out.println(posParam.getX() +" - "+ posParam.getY());
         Celda celdaOrigen = tablero.getCelda(posParam);
@@ -416,7 +416,7 @@ public class Partida implements Serializable {
         int municion = dron.getMunicion();
         //System.out.println("Municion: "+municion);
         return municion;
-    }
+    }*/
     
     public boolean despliegueTerminadoEquipo(Equipo equipoParam) {     // verifica si ya se desplegaron todos los drones del equipo
         boolean termino = false;
@@ -547,11 +547,11 @@ public class Partida implements Serializable {
         }
         
         if (!portaDronesNaval.estaMuerto()) {
-            Posicion posPortaNaval = new Posicion(portaDronesNaval.getPosicion().getX()+1, portaDronesNaval.getPosicion().getY()-3);
+            Posicion posPortaNaval = new Posicion(portaDronesNaval.getPosicion().getX()+2, portaDronesNaval.getPosicion().getY()-3);
             tablero.marcarVision(posPortaNaval, portaDronesNaval.getVision(), Equipo.NAVAL);
         }
         if (!portaDronesAereo.estaMuerto()) {
-            Posicion posPortaAereo = new Posicion(portaDronesAereo.getPosicion().getX()-1, portaDronesAereo.getPosicion().getY()+3);
+            Posicion posPortaAereo = new Posicion(portaDronesAereo.getPosicion().getX()-2, portaDronesAereo.getPosicion().getY()+3);
             tablero.marcarVision(posPortaAereo, portaDronesAereo.getVision(), Equipo.AEREO);
         }
         

@@ -183,13 +183,13 @@ public class GameHandler {
 								String nombreNaval = p.getJugadorNaval().getNombre();
 								String nombreAereo = p.getJugadorAereo().getNombre();
 
-								boolean reenviar = servicios.consumirFinalizacionPendiente(nombreNaval, nombreAereo, 30_000);
+								boolean reenviar = servicios.consumirFinalizacionPendiente(nombreNaval, nombreAereo, 15_000);
 								if (reenviar) {
 									Equipo ganador = p.getEquipoGanador();
 									VoMensaje finMsg = VoMensaje.builder()
 										.tipoMensaje(5)
 										.evento("La partida ha terminado por abandono")
-										.nombre(ganador != null ? ganador.toString() : "Empate")
+										.nombre(ganador != Equipo.NINGUNO ? ganador.toString() : "Empate")
 										.fasePartida(FasePartida.TERMINADO)
 										.build();
 									String finRespuesta = mapper.writeValueAsString(finMsg);
@@ -202,12 +202,6 @@ public class GameHandler {
 						}
 					} else {
 						LOGGER.warn("ACTUALIZAR: No se encontró partida para jugador '{}'", nombre);
-					}
-					} break;
-				case "MUNICION":{
-					System.out.println("case MUNICION");
-					if (p != null) {
-						handleMunicion(data, nombre, p);
 					}
 					} break;
 				default: 
@@ -244,7 +238,7 @@ public class GameHandler {
                             VoMensaje finMsg = VoMensaje.builder()
                                 .tipoMensaje(5) // Nuevo tipo para finalización
                                 .evento("La partida ha terminado")
-                                .nombre(ganador != null ? ganador.toString() : "Empate")
+                                .nombre(ganador != Equipo.NINGUNO ? ganador.toString() : "Empate")
                                 .fasePartida(FasePartida.TERMINADO)
                                 .build();
                             String finRespuesta = mapper.writeValueAsString(finMsg);
@@ -416,7 +410,7 @@ public class GameHandler {
 		
 		p.recargarMunicion(pos);
 	}
-
+	/* 
 	// pasamos nombre que ya lo tenemos de antes asi no tenemos que guardarlo nuevamente
 	public void handleMunicion(Map<String, Object> data, String nombre, Partida p) {
 		System.out.println("municion");
@@ -448,7 +442,7 @@ public class GameHandler {
 		} catch (Exception e) {
 
 		}
-	}
+	}*/
 
 	public void handleGuardar(String solicitante, Partida p) {
 		String nombre = null;
@@ -579,8 +573,14 @@ public class GameHandler {
 		try {
 			// Crear VoMensaje con la fase y la grilla completa
 			VoMensaje mensaje = VoMensaje.builder()
-				.tipoMensaje(1)
+				.tipoMensaje(1) //.tipoMensaje(0)
 				.fasePartida(p.getFasePartida())
+				.vidaPortaN(p.getPortaDronesNaval().getVida())
+				.vidaPortaA(p.getPortaDronesAereo().getVida())
+				.cantDronesN(p.cantDronesEquipo(Equipo.NAVAL))
+				.cantDronesA(p.cantDronesEquipo(Equipo.AEREO))
+				.turnosMuerteSubita(p.getTurnosMuerteSubita())
+				.equipo(p.getTurno())
 				.grilla(p.getTablero().getGrillaLineal())
 				.build(); //new VoMensaje(p.getFasePartida(), p.getTablero());
 			t = mapper.writeValueAsString(mensaje);

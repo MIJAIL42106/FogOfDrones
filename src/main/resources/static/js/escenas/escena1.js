@@ -247,30 +247,31 @@ class escena1 extends Phaser.Scene {
 */
     crearUIRanking() {
         const { width, height } = this.cameras.main;
-        const panelX = width - 360;
-        const panelY = 60;
+        const panelX = width - 230;
+        const panelY = 80;
         
         // Panel de fondo tipo consola militar
-        this._rankingPanel = this.add.rectangle(panelX + 160, panelY + 160, 320, 260, 0x0b1a0b, 0.85)
-            .setStrokeStyle(3, 0x5a7f3a, 1);
+        this._rankingPanel = this.add.rectangle(panelX, panelY, 400, 360, 0x0b1a0b, 0.85)
+            .setStrokeStyle(3, 0x5a7f3a, 1)
+            .setOrigin(0.5, 0);
 
-        this.rankingTitulo = this.add.text(panelX + 16, panelY - 10, 'RANKING DE JUGADORES', {
-            fontSize: '24px',
+        this.rankingTitulo = this.add.text(panelX , panelY - 8 , 'RANKING DE JUGADORES', {
+            fontSize: '32px',
             fontFamily: 'Cambria, "Times New Roman", serif',
             color: '#d7ffb2',
             fontStyle: 'bold'
-        }).setOrigin(0, 0);
+        }).setOrigin(0.5, 1);
 
         // crear un texto simple para el ranking (monoespaciado)
         const textStyle = {
             fontFamily: 'Courier, monospace',
-            fontSize: '20px',
+            fontSize: '25px',
             color: '#f0f7e0',
             align: 'left',
-            wordWrap: { width: 320 }
+            wordWrap: { width: 400 }
         };
-        this.rankingText = this.add.text(panelX + 16, panelY + 32, 'Cargando ranking...', textStyle)
-            .setOrigin(0, 0);
+        this.rankingText = this.add.text(panelX, panelY + 15, 'Cargando ranking...', textStyle)
+            .setOrigin(0.5, 0);
 
         // registrar resize y aplicar posición inicial
         //this.scale.on('resize', this.resizeRanking, this);
@@ -320,7 +321,6 @@ class escena1 extends Phaser.Scene {
         this.eliminarInputsNombreGlobal();
 
         this.shutdown();
-        this.musica.stop();
         this.scene.start('partida', { nombre, equipo: gameState.equipo, canal: this.canalPartida });
     }
 
@@ -352,7 +352,6 @@ class escena1 extends Phaser.Scene {
             border: 3px solid #5a7f3a;
             border-radius: 6px;
             text-align: center;
-            text-transform: uppercase;
             outline: none;
             box-shadow: 0 0 12px rgba(0, 0, 0, 0.7);
         `;
@@ -467,6 +466,11 @@ class escena1 extends Phaser.Scene {
 
         //this.tweens.removeAll();
         this.tweens.killAll();*/
+        if (this.musica) {
+            this.musica.stop();
+            this.musica.destroy();
+        }
+        
         if (this.cadena && this.cadena.destroy) {
             this.cadena.destroy();
             this.cadena = null;
