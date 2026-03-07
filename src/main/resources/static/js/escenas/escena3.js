@@ -387,7 +387,6 @@ class escena3 extends Phaser.Scene {
                                 this.oscurecer = null;
                             }
                             setTimeout(() => {
-                                console.log('Delay GUARDADO/ACEPTADA cumplido, cerrando escena partida');
                                 try {
                                     this.shutdown();
                                 } catch (e) {
@@ -845,18 +844,20 @@ class escena3 extends Phaser.Scene {
             this.oscurecer = null;
         }
         const requiereReemplazo = tipoSolicitud === 'REEMPLAZO' || tipoSolicitud === 'REEMPLAZO_EMPATE';
-        const reemplazoConEmpate = tipoSolicitud === 'REEMPLAZO_EMPATE';
         var oscurecer = this.add.rectangle(950, 540, 1920, 1080, gameState.niebla).setDepth(3).setAlpha(0.4);
         this.oscurecer = oscurecer;
-        var alerta = this.add.rectangle(950, 540, 1920*0.6, 1080*0.3, gameState.niebla).setDepth(3);
+        var alerta = this.add.rectangle(950, 540, 1920*0.7, 1080*0.3, gameState.niebla).setDepth(3);
         var rechazarBtn = this.add.image(950 - 333, alerta.y + alerta.height / 6,"Rechazar").setInteractive({ useHandCursor: true }).setDepth(4);
         var aceptarBtn = this.add.image(950 + 333, alerta.y + alerta.height / 6,"Aceptar").setInteractive({ useHandCursor: true }).setDepth(4);
-        let texto = "Se ha recibido una solicitud de guardado\nDesea guardar la partida y volver al menu?";
-        if (reemplazoConEmpate) {
-            texto = "Ya existe una partida guardada previa entre ambos jugadores.\nDesea borrarla para guardar la nueva?\nLa partida anterior finalizara en empate.";
-        } else if (requiereReemplazo) {
-            texto = "Ya existe una partida guardada previa.\nDesea borrarla para guardar la nueva?\nLa partida anterior se eliminara y ganara el rival.";
+        let texto = "Se ha recibido una solicitud de guardado de partida.\nDesea guardar la partida y volver al menu?";
+        if (requiereReemplazo) {
+            if(tipoSolicitud === 'REEMPLAZO_EMPATE'){
+                texto = "Ya existe una partida guardada entre ambos jugadores.\nDesea borrarla para guardar la nueva?\nLa partida anterior finalizara en empate.";
+            } else {
+                texto = "Ya existe una partida guardada previa.\nDesea borrarla para guardar la nueva?\nLa partida anterior se eliminara y ganara el rival.";
+            }
         }
+
         var textoSolicitud = this.add.text(950, alerta.y - alerta.height / 4, texto, { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0.5, 0.5).setDepth(4);
 
         rechazarBtn.on('pointerover', function() {     

@@ -1,7 +1,6 @@
-
-class ConexionWS {  // hacer archivo config con url
-    constructor(url = 'http://localhost:8080/game') {   // http://26.169.248.78:8080/game
-        this.url = url;
+class ConexionWS { 
+    constructor() {                                     //constructor(url = 'http://localhost:8080/game') {   
+        this.url = 'http://26.169.248.78:8080/game';    // http://26.169.248.78:8080/game // http://localhost:8080/game
         this.stompClient = null;
         this.connected = false;
         this.subscriptions = {};
