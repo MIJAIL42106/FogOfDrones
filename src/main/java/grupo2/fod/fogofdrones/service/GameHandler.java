@@ -1,7 +1,9 @@
 package grupo2.fod.fogofdrones.service;
 
 // ver como adaptar a servicios usando varias partidas
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -37,6 +39,10 @@ public class GameHandler {
 	private SesionJugadores sesionJugadores;
 	private String jugador1 = null;
 	private String jugador2 = null;
+	private final Map<String, String> solicitanteGuardadoPendientePorClave = new ConcurrentHashMap<>();
+	private final Map<String, Boolean> aprobacionRivalPendientePorClave = new ConcurrentHashMap<>();
+	private final Map<String, Boolean> reemplazoGuardadoPendientePorClave = new ConcurrentHashMap<>();
+	private final Map<String, Set<String>> confirmacionReemplazoPendientePorClave = new ConcurrentHashMap<>();
 
 	/**
 	 * Limpia cualquier estado de espera (lobby o carga) asociado a un jugador.
@@ -445,43 +451,28 @@ public class GameHandler {
 	}*/
 
 	public void handleGuardar(String solicitante, Partida p) {
-		String nombre = null;
-		if ( solicitante.equals(p.getJugadorAereo().getNombre()) ) {
-			nombre = p.getJugadorNaval().getNombre();
-		} else {
-			nombre = p.getJugadorAereo().getNombre();
-		}
+		String nombre = solicitante.equals(p.getJugadorAereo().getNombre())
+			? p.getJugadorNaval().getNombre()
+			: p.getJugadorAereo().getNombre();
 		try {
-			// Si cualquiera ya tiene una partida guardada, no permitir otro guardado.
-			boolean solicitanteTiene = servicios.existePartidaGuardada(solicitante);
-			boolean rivalTiene = servicios.existePartidaGuardada(nombre);
-			if (solicitanteTiene || rivalTiene) {
-				String evento;
-				if (solicitanteTiene) {
-					evento = "No se puede guardar: ya tienes una partida guardada.";
-				} else {
-					evento = "No se puede guardar: tu rival ya tiene una partida guardada.";
+			String clave = servicios.generarClave(p.getJugadorNaval().getNombre(), p.getJugadorAereo().getNombre());
+			solicitanteGuardadoPendientePorClave.put(clave, solicitante);
+			aprobacionRivalPendientePorClave.put(clave, true);
+
+			Set<String> jugadoresConGuardado = obtenerJugadoresConPartidaGuardada(solicitante, nombre);
+			if (!jugadoresConGuardado.isEmpty()) {
+				reemplazoGuardadoPendientePorClave.put(clave, true);
+				confirmacionReemplazoPendientePorClave.put(clave, new HashSet<>(jugadoresConGuardado));
+				if (jugadoresConGuardado.contains(solicitante)) {
+					enviarMensajeGuardado(p, solicitante, "CONFIRMAR_REEMPLAZO");
+					return;
 				}
-				VoMensaje mensajeError = VoMensaje.builder()
-					.tipoMensaje(3)
-					.nombre(solicitante)
-					.evento(evento)
-					.build();
-				String respuestaError = mapper.writeValueAsString(mensajeError);
-				String canal = getCanalPartida(p);
-				messagingTemplate.convertAndSend(canal, respuestaError);
-				return;
+			} else {
+				reemplazoGuardadoPendientePorClave.remove(clave);
+				confirmacionReemplazoPendientePorClave.remove(clave);
 			}
 
-			//VoMensaje mensajeError = new VoMensaje(nombre, 6); // "solicitud de guardado"
-			VoMensaje mensajeGuardado = VoMensaje.builder()
-				.tipoMensaje(2)
-				.nombre(nombre)
-				.evento("SOLICITUD")	// "solicitud de guardado"
-				.build(); // "solicitud de guardado"
-			String respuesta = mapper.writeValueAsString(mensajeGuardado);
-			String canal = getCanalPartida(p);
-			messagingTemplate.convertAndSend(canal, respuesta);
+			enviarMensajeGuardado(p, nombre, "SOLICITUD");
 		} catch (Exception e) {
 
 		}
@@ -489,21 +480,33 @@ public class GameHandler {
 
 	public void handleRechazar(String nombre, Partida p) {
 		System.out.println("rechazar guardado");
-		String solicitante = null;
-		if ( nombre.equals(p.getJugadorAereo().getNombre()) ) {
-			solicitante = p.getJugadorNaval().getNombre();
-		} else {
-			solicitante = p.getJugadorAereo().getNombre();
-		}
 		try {
-			VoMensaje mensajeGuardado = VoMensaje.builder()
-				.tipoMensaje(2)
-				.nombre(solicitante)
-				.evento("RECHAZADA")	//"solicitud de guardado rechazada"
-				.build();//new VoMensaje(solicitante, 7); // "solicitud de guardado rechazada"
-			String respuesta = mapper.writeValueAsString(mensajeGuardado);
-			String canal = getCanalPartida(p);
-			messagingTemplate.convertAndSend(canal, respuesta);	// antes "/topic/game"
+			String clave = servicios.generarClave(p.getJugadorNaval().getNombre(), p.getJugadorAereo().getNombre());
+			String solicitante = solicitanteGuardadoPendientePorClave.get(clave);
+			if (solicitante == null) {
+				return;
+			}
+
+			if (Boolean.TRUE.equals(aprobacionRivalPendientePorClave.get(clave))) {
+				limpiarEstadoGuardadoPendiente(clave);
+				enviarMensajeGuardado(p, solicitante, "RECHAZADA");
+				return;
+			}
+
+			Set<String> pendientesReemplazo = confirmacionReemplazoPendientePorClave.get(clave);
+			if (pendientesReemplazo != null && pendientesReemplazo.contains(nombre)) {
+				Set<String> jugadoresANotificar = new HashSet<>(pendientesReemplazo);
+				jugadoresANotificar.remove(nombre);
+				if (!nombre.equals(solicitante)) {
+					jugadoresANotificar.add(solicitante);
+				}
+				limpiarEstadoGuardadoPendiente(clave);
+				enviarMensajesGuardado(p, jugadoresANotificar, "RECHAZADA");
+				return;
+			}
+
+			limpiarEstadoGuardadoPendiente(clave);
+			enviarMensajeGuardado(p, solicitante, "RECHAZADA");
 		} catch (Exception e) {
 
 		}
@@ -511,21 +514,54 @@ public class GameHandler {
 
 	public void handleAceptar(String nombre, Partida p) {
 		System.out.println("aceptar guardado");
-		String solicitante;
-		String otroJugador;
-		if ( nombre.equals(p.getJugadorAereo().getNombre()) ) {
-			// Acepta el aéreo, solicitó el naval
-			solicitante = p.getJugadorNaval().getNombre();
-			otroJugador = p.getJugadorAereo().getNombre();
-		} else {
-			// Acepta el naval, solicitó el aéreo
-			solicitante = p.getJugadorAereo().getNombre();
-			otroJugador = p.getJugadorNaval().getNombre();
-		}
+		String clave = servicios.generarClave(p.getJugadorNaval().getNombre(), p.getJugadorAereo().getNombre());
 		try {
-			// Validación defensiva: durante el flujo de aceptación podría existir ya un guardado.
-			if (!servicios.guardarPartida(p.getJugadorNaval().getNombre(), p.getJugadorAereo().getNombre())) {
-				String evento = "No se pudo guardar: alguno de los jugadores ya tiene una partida guardada.";
+			String solicitante = solicitanteGuardadoPendientePorClave.get(clave);
+			if (solicitante == null) {
+				return;
+			}
+
+			String otroJugador = solicitante.equals(p.getJugadorAereo().getNombre())
+				? p.getJugadorNaval().getNombre()
+				: p.getJugadorAereo().getNombre();
+
+			if (Boolean.TRUE.equals(aprobacionRivalPendientePorClave.get(clave))) {
+				Set<String> pendientesReemplazoIniciales = confirmacionReemplazoPendientePorClave.get(clave);
+				if (nombre.equals(solicitante)
+					&& pendientesReemplazoIniciales != null
+					&& pendientesReemplazoIniciales.remove(solicitante)) {
+					enviarMensajeGuardado(p, otroJugador, "SOLICITUD");
+					return;
+				}
+
+				aprobacionRivalPendientePorClave.remove(clave);
+				Set<String> pendientesReemplazoRestantes = confirmacionReemplazoPendientePorClave.get(clave);
+				if (pendientesReemplazoRestantes != null && !pendientesReemplazoRestantes.isEmpty()) {
+					enviarMensajesGuardado(p, new HashSet<>(pendientesReemplazoRestantes), "CONFIRMAR_REEMPLAZO");
+					return;
+				}
+			}
+
+			Set<String> pendientesReemplazo = confirmacionReemplazoPendientePorClave.get(clave);
+			if (pendientesReemplazo != null && pendientesReemplazo.remove(nombre)) {
+				if (!pendientesReemplazo.isEmpty()) {
+					return;
+				}
+				confirmacionReemplazoPendientePorClave.remove(clave);
+			} else if (pendientesReemplazo != null && !pendientesReemplazo.isEmpty()) {
+				enviarMensajesGuardado(p, new HashSet<>(pendientesReemplazo), "CONFIRMAR_REEMPLAZO");
+				return;
+			}
+
+			solicitanteGuardadoPendientePorClave.remove(clave);
+			boolean reemplazarGuardadas = Boolean.TRUE.equals(reemplazoGuardadoPendientePorClave.remove(clave));
+			confirmacionReemplazoPendientePorClave.remove(clave);
+			aprobacionRivalPendientePorClave.remove(clave);
+
+			if (!servicios.guardarPartida(p.getJugadorNaval().getNombre(), p.getJugadorAereo().getNombre(), reemplazarGuardadas)) {
+				String evento = reemplazarGuardadas
+					? "No se pudo reemplazar la partida guardada anterior."
+					: "No se pudo guardar: alguno de los jugadores ya tiene una partida guardada.";
 				VoMensaje errorSolicitante = VoMensaje.builder()
 					.tipoMensaje(3)
 					.nombre(solicitante)
@@ -545,24 +581,46 @@ public class GameHandler {
 			}
 
 			// Notificar al solicitante y al jugador que aceptó que la solicitud fue aceptada
-			VoMensaje mensajeSolicitante = VoMensaje.builder()
-				.tipoMensaje(2)
-				.nombre(solicitante)
-				.evento("ACEPTADA")
-				.build();
-			VoMensaje mensajeAceptador = VoMensaje.builder()
-				.tipoMensaje(2)
-				.nombre(otroJugador)
-				.evento("ACEPTADA")
-				.build();
-			String respuestaSolicitante = mapper.writeValueAsString(mensajeSolicitante);
-			String respuestaAceptador = mapper.writeValueAsString(mensajeAceptador);
-			String canal = getCanalPartida(p);
-			messagingTemplate.convertAndSend(canal, respuestaSolicitante);
-			messagingTemplate.convertAndSend(canal, respuestaAceptador);
+			enviarMensajeGuardado(p, solicitante, "ACEPTADA");
+			enviarMensajeGuardado(p, otroJugador, "ACEPTADA");
 		} catch (Exception e) {
 
 		}
+	}
+
+	private void enviarMensajeGuardado(Partida p, String destino, String evento) throws Exception {
+		VoMensaje mensajeGuardado = VoMensaje.builder()
+			.tipoMensaje(2)
+			.nombre(destino)
+			.evento(evento)
+			.build();
+		String respuesta = mapper.writeValueAsString(mensajeGuardado);
+		String canal = getCanalPartida(p);
+		messagingTemplate.convertAndSend(canal, respuesta);
+	}
+
+	private void enviarMensajesGuardado(Partida p, Set<String> destinos, String evento) throws Exception {
+		for (String destino : destinos) {
+			enviarMensajeGuardado(p, destino, evento);
+		}
+	}
+
+	private Set<String> obtenerJugadoresConPartidaGuardada(String jugador1, String jugador2) {
+		Set<String> jugadoresConGuardado = new HashSet<>();
+		if (servicios.existePartidaGuardada(jugador1)) {
+			jugadoresConGuardado.add(jugador1);
+		}
+		if (servicios.existePartidaGuardada(jugador2)) {
+			jugadoresConGuardado.add(jugador2);
+		}
+		return jugadoresConGuardado;
+	}
+
+	private void limpiarEstadoGuardadoPendiente(String clave) {
+		solicitanteGuardadoPendientePorClave.remove(clave);
+		aprobacionRivalPendientePorClave.remove(clave);
+		reemplazoGuardadoPendientePorClave.remove(clave);
+		confirmacionReemplazoPendientePorClave.remove(clave);
 	}
 
 	
