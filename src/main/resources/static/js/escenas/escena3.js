@@ -363,7 +363,10 @@ class escena3 extends Phaser.Scene {
                 if (mensaje.nombre === msg.nombre) { // alerta error al jugador afectado
                     switch (msg.evento) {
                         case "SOLICITUD":{
-                            this.solicitarGuardado();
+                            this.solicitarGuardado('SOLICITUD');
+                        }break;
+                        case "CONFIRMAR_REEMPLAZO":{
+                            this.solicitarGuardado('REEMPLAZO');
                         }break;
                         case "RECHAZADA":{
                             this.mostrarMensajeEvento("Solicitud de guardado rechazada");
@@ -398,7 +401,7 @@ class escena3 extends Phaser.Scene {
                 console.log("ERROR - evento:", msg.evento, "destino:", msg.nombre);
                 if (mensaje.nombre === msg.nombre) { // alerta error a jugador
                     this.mostrarMensajeError(msg.evento);
-                    if (msg.evento.includes('No se puede guardar')) {
+                    if (gameState.solicitandoGuardado) {
                         gameState.solicitandoGuardado = false;
                         if (this.oscurecer && this.oscurecer.destroy) {
                             this.oscurecer.destroy();
@@ -832,13 +835,22 @@ class escena3 extends Phaser.Scene {
         });
     }
 
-    solicitarGuardado(){
+    solicitarGuardado(tipoSolicitud){
         gameState.solicitandoGuardado = true;
+        if (this.oscurecer && this.oscurecer.destroy) {
+            this.oscurecer.destroy();
+            this.oscurecer = null;
+        }
+        const requiereReemplazo = tipoSolicitud === 'REEMPLAZO';
         var oscurecer = this.add.rectangle(950, 540, 1920, 1080, gameState.niebla).setDepth(3).setAlpha(0.4);
+        this.oscurecer = oscurecer;
         var alerta = this.add.rectangle(950, 540, 1920*0.6, 1080*0.3, gameState.niebla).setDepth(3);
         var rechazarBtn = this.add.image(950 - 333, alerta.y + alerta.height / 6,"Rechazar").setInteractive({ useHandCursor: true }).setDepth(4);
         var aceptarBtn = this.add.image(950 + 333, alerta.y + alerta.height / 6,"Aceptar").setInteractive({ useHandCursor: true }).setDepth(4);
-        var textoSolicitud = this.add.text(950, alerta.y - alerta.height / 4, "Se ha recibido una solicitud de guardado\nDesea guardar la partida y volver al menu?", { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0.5, 0.5).setDepth(4);
+        const texto = requiereReemplazo
+            ? "Ya existe una partida guardada previa.\nDesea borrarla para guardar la nueva?\nLa partida anterior se eliminara y ganara el rival."
+            : "Se ha recibido una solicitud de guardado\nDesea guardar la partida y volver al menu?";
+        var textoSolicitud = this.add.text(950, alerta.y - alerta.height / 4, texto, { fontFamily: 'Courier, monospace', fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setStroke('#000000', 4).setOrigin(0.5, 0.5).setDepth(4);
 
         rechazarBtn.on('pointerover', function() {     
             rechazarBtn.setTint(0xff3030);
@@ -853,6 +865,9 @@ class escena3 extends Phaser.Scene {
             this.enviarMensage(mensaje); 
             gameState.solicitandoGuardado = false;
             oscurecer.destroy();
+            if (this.oscurecer === oscurecer) {
+                this.oscurecer = null;
+            }
             textoSolicitud.destroy();
             alerta.destroy();
             rechazarBtn.destroy();
@@ -872,7 +887,12 @@ class escena3 extends Phaser.Scene {
             this.enviarMensage(mensaje); 
 
             gameState.solicitandoGuardado = true;
-			oscurecer.destroy();
+            oscurecer.destroy();
+            if (requiereReemplazo) {
+                this.oscurecer = this.add.rectangle(950, 540, 1920, 1080, gameState.niebla).setDepth(3).setAlpha(0.4);
+            } else if (this.oscurecer === oscurecer) {
+                this.oscurecer = null;
+            }
             textoSolicitud.destroy();
 			alerta.destroy();
 			rechazarBtn.destroy();

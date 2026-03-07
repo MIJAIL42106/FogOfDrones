@@ -1,7 +1,9 @@
 package grupo2.fod.fogofdrones.service.logica;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +20,7 @@ public class Servicios{
     private JugadoresRepositorio repo;
     @Autowired
     private PersistenciaRepositorio repoPartidas;
-    private Map<String,Partida> partidas = new ConcurrentHashMap<>();
+    private final Map<String,Partida> partidas = new ConcurrentHashMap<>();
     private final Map<String, Long> finalizacionPendientePorClave = new ConcurrentHashMap<>();
 
     public void marcarFinalizacionPendiente(String jugadorNaval, String jugadorAereo) {
@@ -102,41 +104,55 @@ public class Servicios{
     public void finalizarPartida(String nombre1, String nombre2) {
         String clave = generarClave(nombre1, nombre2);
         finalizacionPendientePorClave.remove(clave);
-        // Remover de forma atómica para que la finalización sea idempotente
-        // (evita doble puntaje si dos eventos disparan finalizarPartida concurrentemente).
         Partida partida = partidas.remove(clave);
         if (partida == null) {
             return;
         }
-        Equipo ganador = partida.getEquipoGanador();
+        registrarResultado(partida, partida.getEquipoGanador());
+    }
+
+    private void registrarResultado(Partida partida, Equipo ganador) {
+        Jugador jugadorNaval = repo.findById(partida.getJugadorNaval().getNombre())
+            .orElse(partida.getJugadorNaval());
+        Jugador jugadorAereo = repo.findById(partida.getJugadorAereo().getNombre())
+            .orElse(partida.getJugadorAereo());
+
         switch (ganador) {
             case NAVAL: {
-                partida.getJugadorNaval().sumarVictoria();
-                partida.getJugadorNaval().sumarPuntos(10);
-                if(partida.getJugadorAereo().getPuntos() > 0) {
-                    partida.getJugadorAereo().sumarPuntos(-5);
+                jugadorNaval.sumarVictoria();
+                jugadorNaval.sumarPuntos(10);
+                if(jugadorAereo.getPuntos() > 0) {
+                    jugadorAereo.sumarPuntos(-5);
                 }
             } break;
             case AEREO: {
-                partida.getJugadorAereo().sumarVictoria();
-                partida.getJugadorAereo().sumarPuntos(10);
-                if(partida.getJugadorNaval().getPuntos() > 0) {
-                    partida.getJugadorNaval().sumarPuntos(-5);
+                jugadorAereo.sumarVictoria();
+                jugadorAereo.sumarPuntos(10);
+                if(jugadorNaval.getPuntos() > 0) {
+                    jugadorNaval.sumarPuntos(-5);
                 }
             } break;
             default:
                 break;
         }
-        repo.save(partida.getJugadorNaval());
-        repo.save(partida.getJugadorAereo());
+        repo.save(jugadorNaval);
+        repo.save(jugadorAereo);
     }
 
     public boolean guardarPartida(String nombre1, String nombre2) {
+        return guardarPartida(nombre1, nombre2, false);
+    }
+
+    public boolean guardarPartida(String nombre1, String nombre2, boolean reemplazarGuardadas) {
         String clave = generarClave(nombre1, nombre2);
         Partida partida = partidas.get(clave);
         if (partida != null) {
-            if (existePartidaGuardada(nombre1) || existePartidaGuardada(nombre2)) {
+            boolean hayGuardadasPrevias = existePartidaGuardada(nombre1) || existePartidaGuardada(nombre2);
+            if (hayGuardadasPrevias && !reemplazarGuardadas) {
                 return false;
+            }
+            if (hayGuardadasPrevias) {
+                eliminarPartidasGuardadasPrevias(nombre1, nombre2);
             }
             
             Persistencia persistencia = new Persistencia(partida, nombre2, nombre1);
@@ -147,6 +163,37 @@ public class Servicios{
         } else {
             return false;
         }
+    }
+
+    private void eliminarPartidasGuardadasPrevias(String nombre1, String nombre2) {
+        Set<String> clavesEliminadas = new HashSet<>();
+        eliminarPartidaGuardadaDeJugador(nombre1, clavesEliminadas);
+        eliminarPartidaGuardadaDeJugador(nombre2, clavesEliminadas);
+    }
+
+    private void eliminarPartidaGuardadaDeJugador(String nombreJugador, Set<String> clavesEliminadas) {
+        Persistencia persistencia = repoPartidas.findByJugador(nombreJugador).orElse(null);
+        if (persistencia == null) {
+            return;
+        }
+
+        String clavePersistencia = generarClave(persistencia.getJugadorNaval(), persistencia.getJugadorAereo());
+        if (!clavesEliminadas.add(clavePersistencia)) {
+            return;
+        }
+
+        Partida partidaGuardada = persistencia.getPartida();
+        if (partidaGuardada != null) {
+            Equipo ganador = Equipo.NINGUNO;
+            if (nombreJugador.equals(persistencia.getJugadorNaval())) {
+                ganador = Equipo.AEREO;
+            } else if (nombreJugador.equals(persistencia.getJugadorAereo())) {
+                ganador = Equipo.NAVAL;
+            }
+            registrarResultado(partidaGuardada, ganador);
+        }
+
+        repoPartidas.delete(persistencia);
     }
 
     public boolean existePartidaGuardada(String nombreJugador) {

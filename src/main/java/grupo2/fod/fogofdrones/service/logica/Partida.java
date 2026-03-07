@@ -389,6 +389,7 @@ public class Partida implements Serializable {
     }
 
     public void finalizarPartida() {
+        ganadorForzado = calcularGanadorActual();
         fase = FasePartida.TERMINADO;
     }
 
@@ -403,22 +404,33 @@ public class Partida implements Serializable {
         if (ganadorForzado != null) {
             return ganadorForzado;
         }
+        return calcularGanadorActual();
+    }
+
+    private Equipo calcularGanadorActual() {
         Equipo ganador = Equipo.NINGUNO;
-        if (cantDronesEquipo(Equipo.NAVAL) == 0) {
+        int dronesNavalesRestantes = cantDronesEquipo(Equipo.NAVAL);
+        int dronesAereosRestantes = cantDronesEquipo(Equipo.AEREO);
+        int vidaNaval = portaDronesNaval.getVida();
+        int vidaAerea = portaDronesAereo.getVida();
+
+        if (dronesNavalesRestantes == 0 && dronesAereosRestantes > 0) {
             ganador = Equipo.AEREO;
-        } else {
-            if (cantDronesEquipo(Equipo.AEREO) == 0) {
+        } else if (dronesAereosRestantes == 0 && dronesNavalesRestantes > 0) {
+            ganador = Equipo.NAVAL;
+        } else if (vidaNaval <= 0 && vidaAerea > 0) {
+            ganador = Equipo.AEREO;
+        } else if (vidaAerea <= 0 && vidaNaval > 0) {
+            ganador = Equipo.NAVAL;
+        } else if (fase == FasePartida.TERMINADO) {
+            if (dronesNavalesRestantes > dronesAereosRestantes) {
                 ganador = Equipo.NAVAL;
-            } else {
-                if (fase == FasePartida.TERMINADO) {
-                    if (portaDronesNaval.getVida() > 0) {
-                        ganador = Equipo.NAVAL;
-                    } else {
-                        if (portaDronesAereo.getVida() > 0) {
-                            ganador = Equipo.AEREO;
-                        }
-                    }
-                }
+            } else if (dronesAereosRestantes > dronesNavalesRestantes) {
+                ganador = Equipo.AEREO;
+            } else if (vidaNaval > vidaAerea) {
+                ganador = Equipo.NAVAL;
+            } else if (vidaAerea > vidaNaval) {
+                ganador = Equipo.AEREO;
             }
         }
         return ganador;
